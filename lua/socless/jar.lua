@@ -8,7 +8,7 @@ M.REPO = "e-ban/SoCless"
 ---or the end where it is used).
 local HEX64 = string.rep("%x", 64)
 
-local RELEASES ="https://github.com/" .. M.REPO .. "/releases/download"
+local RELEASES = "https://github.com/" .. M.REPO .. "/releases/download"
 
 ---@param version string
 ---@return string
