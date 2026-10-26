@@ -37,6 +37,7 @@ describe("client", function()
     real.lens_enable, real.get_client = vim.lsp.codelens.enable, vim.lsp.get_client_by_id
     real.ensure, real.can_attach = jar.ensure, client._can_attach
     real.executable = vim.fn.executable
+    real.get_clients = vim.lsp.get_clients
     client._can_attach = function() return true end
     notes, configs, enabled, disabled, lens_enables, missing = {}, {}, {}, {}, {}, {}
     vim.notify = function(msg, level) table.insert(notes, { msg = msg, level = level }) end
@@ -56,6 +57,7 @@ describe("client", function()
     vim.lsp.codelens.enable, vim.lsp.get_client_by_id = real.lens_enable, real.get_client
     jar.ensure, client._can_attach = real.ensure, real.can_attach
     vim.fn.executable = real.executable
+    vim.lsp.get_clients = real.get_clients
     pcall(vim.api.nvim_del_augroup_by_name, "socless")
     pcall(vim.api.nvim_del_augroup_by_name, "socless.start")
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
@@ -154,6 +156,39 @@ describe("client", function()
       eq({ "socless", "socless" }, enabled)
       eq("SoCLess: restarted with the new options", notes[#notes].msg)
       eq(vim.log.levels.INFO, notes[#notes].level)
+    end)
+
+    it("a restart first stops a server that is still starting (not yet initialized)", function()
+      vim.bo[scala_buffer(true)].filetype = "scala"
+      require("socless").setup({ java = "/one" })
+      local asked, stopped = nil, {}
+      vim.lsp.get_clients = function(filter)
+        asked = filter
+        return { { id = 5, stop = function(self) table.insert(stopped, { self.id, #disabled }) end } }
+      end
+      require("socless").setup({ java = "/two" })
+      eq("socless", asked.name)
+      eq(true, asked._uninitialized)
+      eq({ { 5, 0 } }, stopped) -- stopped before the disable
+      eq({ "socless" }, disabled)
+    end)
+
+    it("lists a starting client only with _uninitialized (the runtime behaviour the restart relies on)", function()
+      local dir = vim.fn.tempname()
+      table.insert(dirs, dir)
+      vim.fn.mkdir(dir, "p")
+      local id = assert(vim.lsp.start({ name = "socless-probe", cmd = { "sleep", "30" }, root_dir = dir },
+        { attach = false }))
+      local function listed(filter)
+        return #vim.tbl_filter(function(c) return c.id == id end, vim.lsp.get_clients(filter))
+      end
+      local ok, err = pcall(function()
+        eq(0, listed({ name = "socless-probe" }))
+        eq(1, listed({ name = "socless-probe", _uninitialized = true }))
+      end)
+      vim.lsp.get_client_by_id(id):stop(true)
+      vim.wait(1000, function() return vim.lsp.get_client_by_id(id) == nil end, 20)
+      assert(ok, err)
     end)
 
     it("a second setup re-resolves the jar (a new server_jar is used)", function()
@@ -275,7 +310,7 @@ describe("client", function()
       vim.bo[scala_buffer(true)].filetype = "scala"
       eq(0, #configs)
       eq(1, #notes)
-      eq("SoCLess: could not download URL", notes[1].msg)
+      eq("SoCLess: could not download URL. Run :Socless update to try again", notes[1].msg)
       eq(vim.log.levels.ERROR, notes[1].level)
       vim.bo[scala_buffer(true)].filetype = "scala"
       eq(1, calls)
@@ -462,6 +497,17 @@ describe("client", function()
       status("ok")
       status("error", "boom")
       eq(0, #notes)
+    end)
+  end)
+
+  describe("get", function()
+    it("prefers a client that is not stopping (a restart's old server)", function()
+      local dying = { id = 1, is_stopped = function() return true end }
+      local alive = { id = 2, is_stopped = function() return false end }
+      vim.lsp.get_clients = function() return { dying, alive } end
+      eq(alive, client.get(3))
+      vim.lsp.get_clients = function() return { dying } end
+      eq(nil, client.get(3))
     end)
   end)
 

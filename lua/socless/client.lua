@@ -175,6 +175,11 @@ local function restart(msg)
     state.jar = path
     state.last_cursor = nil
     register()
+    -- enable(false) stops only initialized clients (get_clients skips the
+    -- others), and enable() would then reuse a server still starting: stop
+    -- those too. `_uninitialized` is the runtime's own (package) filter, the
+    -- only way 0.12 lists a starting client.
+    for _, c in ipairs(vim.lsp.get_clients({ name = "socless", _uninitialized = true })) do c:stop() end
     vim.lsp.enable("socless", false)
     vim.lsp.enable("socless")
     -- enable re-attaches the open buffers only after VimEnter or inside a
@@ -211,7 +216,8 @@ function M._on_filetype(buf)
     end
     if not path then
       state.phase = "failed"
-      return vim.notify(err or "SoCLess: no server jar", vim.log.levels.ERROR)
+      return vim.notify((err or "SoCLess: no server jar") .. ". Run :Socless update to try again",
+        vim.log.levels.ERROR)
     end
     state.jar = path
     if M._can_attach() then return start() end
@@ -246,11 +252,14 @@ function M.updated()
   if vim.bo[buf].filetype == "scala" then M._on_filetype(buf) end
 end
 
----The socless client attached to `buf`, if any.
+---The socless client attached to `buf`, if any, never one that is stopping
+---(a restart's old server).
 ---@param buf integer
 function M.get(buf)
   if M._get then return M._get(buf) end
-  return vim.lsp.get_clients({ name = "socless", bufnr = buf })[1]
+  for _, c in ipairs(vim.lsp.get_clients({ name = "socless", bufnr = buf })) do
+    if not c:is_stopped() then return c end
+  end
 end
 
 ---Sends `socless/cursor {uri, line}` (0-based) for the cursor in `buf`, when
