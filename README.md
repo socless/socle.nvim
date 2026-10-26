@@ -236,11 +236,13 @@ The unit specs need neither network nor Java. The specs under
 `tests/integration/` run the real server on SoCLess's `example/` project. They
 need two variables, and are skipped (not failed) without them:
 
-- `SOCLESS_ROOT`: a SoCLess checkout;
+- `SOCLESS_ROOT`: a SoCLess checkout. View design runs `./mill` there and
+  writes its `out/` directory, so use a scratch clone, not one you work in
+  (`git clone --branch v0.17.0 ~/dev/socless /tmp/socless`);
 - `SOCLESS_JAR`: its server jar, `socless-lsp-<version>.jar`.
 
 ```sh
-SOCLESS_ROOT=~/dev/socless SOCLESS_JAR=/path/to/socless-lsp-0.17.0.jar \
+SOCLESS_ROOT=/tmp/socless SOCLESS_JAR=/path/to/socless-lsp-0.17.0.jar \
   nvim --headless -u NONE -l tests/run.lua integration
 ```
 
