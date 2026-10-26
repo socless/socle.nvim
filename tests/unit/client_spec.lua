@@ -2,11 +2,23 @@ local client = require("socless.client")
 local jar = require("socless.jar")
 
 local real = {}
-local notes, configs, enabled, lens_enables
+local notes, configs, enabled, disabled, lens_enables
+---Executables `vim.fn.executable` says are missing (all others exist).
+local missing
+---The scratch dirs of `scala_buffer`, deleted after each spec.
+local dirs = {}
+
+---A table like `vim.lsp.config`: `vim.lsp.config.socless = tbl` (and the
+---call form) are recorded in `configs`.
+local function config_recorder()
+  local function record(_, name, cfg) table.insert(configs, { name = name, cfg = cfg }) end
+  return setmetatable({}, { __newindex = record, __call = record })
+end
 
 ---A scratch Mill project (a build.mill) or not, with one Scala file in it.
 local function scala_buffer(mill)
   local dir = vim.fn.tempname()
+  table.insert(dirs, dir)
   vim.fn.mkdir(dir .. "/src", "p")
   if mill then
     local f = assert(io.open(dir .. "/build.mill", "w"))
@@ -24,11 +36,15 @@ describe("client", function()
     real.config, real.enable = vim.lsp.config, vim.lsp.enable
     real.lens_enable, real.get_client = vim.lsp.codelens.enable, vim.lsp.get_client_by_id
     real.ensure, real.can_attach = jar.ensure, client._can_attach
+    real.executable = vim.fn.executable
     client._can_attach = function() return true end
-    notes, configs, enabled, lens_enables = {}, {}, {}, {}
+    notes, configs, enabled, disabled, lens_enables, missing = {}, {}, {}, {}, {}, {}
     vim.notify = function(msg, level) table.insert(notes, { msg = msg, level = level }) end
-    vim.lsp.config = function(name, cfg) table.insert(configs, { name = name, cfg = cfg }) end
-    vim.lsp.enable = function(name) table.insert(enabled, name) end
+    vim.fn.executable = function(name) return missing[name] and 0 or 1 end
+    vim.lsp.config = config_recorder()
+    vim.lsp.enable = function(name, enable)
+      table.insert(enable == false and disabled or enabled, name)
+    end
     vim.lsp.codelens.enable = function(on, filter) table.insert(lens_enables, { on = on, filter = filter }) end
     jar.ensure = function(_, cb) cb("/tmp/socless-lsp-0.17.0.jar") end
     client._reset()
@@ -39,11 +55,14 @@ describe("client", function()
     vim.lsp.config, vim.lsp.enable = real.config, real.enable
     vim.lsp.codelens.enable, vim.lsp.get_client_by_id = real.lens_enable, real.get_client
     jar.ensure, client._can_attach = real.ensure, real.can_attach
+    vim.fn.executable = real.executable
     pcall(vim.api.nvim_del_augroup_by_name, "socless")
     pcall(vim.api.nvim_del_augroup_by_name, "socless.start")
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
       if vim.api.nvim_buf_get_name(buf):match("%.scala$") then vim.api.nvim_buf_delete(buf, { force = true }) end
     end
+    for _, dir in ipairs(dirs) do vim.fn.delete(dir, "rf") end
+    dirs = {}
     client._reset()
     require("socless").config = nil
   end)
@@ -69,7 +88,7 @@ describe("client", function()
     end)
 
     it("registers the socless config once a Mill project's Scala buffer opens", function()
-      require("socless").setup({ java = "/opt/java", settings = { wave_viewer = "browser", waves_show_wires = false } })
+      require("socless").setup({ java = "/opt/java", settings = { wave_viewer = "surfer-panel", waves_show_wires = false } })
       eq(0, #configs) -- nothing before a scala buffer
       local buf = scala_buffer(true)
       vim.bo[buf].filetype = "scala"
@@ -80,8 +99,8 @@ describe("client", function()
       eq({ "scala" }, c.cfg.filetypes)
       eq({ "build.mill" }, c.cfg.root_markers)
       eq(true, c.cfg.workspace_required)
-      eq({ panel = "client", waveViewer = "browser", wavesShowWires = false }, c.cfg.init_options)
-      eq({ socless = { waveViewer = "browser", wavesShowWires = false } }, c.cfg.settings)
+      eq({ panel = "client", waveViewer = "surfer-panel", wavesShowWires = false }, c.cfg.init_options)
+      eq({ socless = { waveViewer = "surfer-panel", wavesShowWires = false } }, c.cfg.settings)
       eq(client.handlers, c.cfg.handlers)
       eq({ "socless" }, enabled)
     end)
@@ -123,15 +142,73 @@ describe("client", function()
       eq({ "socless" }, enabled)
     end)
 
-    it("a second setup after the start reconfigures and says to restart", function()
+    it("a second setup after the start restarts the server with the new options", function()
       vim.bo[scala_buffer(true)].filetype = "scala"
       require("socless").setup({ java = "/one" })
       eq(1, #configs)
       require("socless").setup({ java = "/two" })
       eq(2, #configs)
       eq("/two", configs[2].cfg.cmd[1])
-      eq(1, #enabled)
-      eq(true, notes[#notes].msg:find(":lsp restart socless", 1, true) ~= nil)
+      -- disabled (which stops the running clients), then enabled again
+      eq({ "socless" }, disabled)
+      eq({ "socless", "socless" }, enabled)
+      eq("SoCLess: restarted with the new options", notes[#notes].msg)
+      eq(vim.log.levels.INFO, notes[#notes].level)
+    end)
+
+    it("a second setup re-resolves the jar (a new server_jar is used)", function()
+      jar.ensure = function(c, cb) cb(c.server_jar) end
+      vim.bo[scala_buffer(true)].filetype = "scala"
+      require("socless").setup({ server_jar = "/a.jar" })
+      require("socless").setup({ server_jar = "/b.jar" })
+      eq("/a.jar", configs[1].cfg.cmd[4])
+      eq("/b.jar", configs[2].cfg.cmd[4])
+    end)
+
+    it("a second setup replaces the registered config: a removed setting does not survive", function()
+      vim.lsp.config = real.config
+      local ok, err = pcall(function()
+        vim.bo[scala_buffer(true)].filetype = "scala"
+        require("socless").setup({ java = "/one", settings = { wave_viewer = "surfer-panel" } })
+        eq("surfer-panel", vim.lsp.config.socless.settings.socless.waveViewer)
+        require("socless").setup({ java = "/two", settings = { waves_show_wires = false } })
+        local registered = vim.lsp.config.socless
+        eq({ socless = { wavesShowWires = false } }, registered.settings)
+        eq(nil, registered.init_options.waveViewer)
+        eq("/two", registered.cmd[1])
+      end)
+      vim.lsp.config._configs.socless = nil
+      assert(ok, err)
+    end)
+
+    it("a second setup with a java that is missing keeps the running server", function()
+      vim.bo[scala_buffer(true)].filetype = "scala"
+      require("socless").setup({ java = "/one" })
+      missing["/two"] = true
+      require("socless").setup({ java = "/two" })
+      eq(1, #configs)
+      eq({}, disabled)
+      eq(vim.log.levels.ERROR, notes[#notes].level)
+      eq(true, notes[#notes].msg:find("java not found", 1, true) ~= nil, notes[#notes].msg)
+    end)
+
+    it("a restart outside a FileType event attaches the open Scala buffers itself", function()
+      local buf = scala_buffer(true)
+      vim.bo[buf].filetype = "scala"
+      require("socless").setup({ java = "/one" })
+      -- stands in for the group vim.lsp.enable creates
+      local fired = {}
+      vim.api.nvim_create_autocmd("FileType", {
+        group = vim.api.nvim_create_augroup("nvim.lsp.enable", { clear = true }),
+        callback = function(ev) table.insert(fired, ev.buf) end,
+      })
+      client._can_attach = function() return false end
+      local ok, err = pcall(function()
+        require("socless").setup({ java = "/two" })
+        eq({ buf }, fired)
+      end)
+      vim.api.nvim_del_augroup_by_name("nvim.lsp.enable")
+      assert(ok, err)
     end)
 
     it("the same setup twice warns once and does not reconfigure", function()
@@ -168,16 +245,60 @@ describe("client", function()
       eq(0, #notes)
     end)
 
-    it("reports a jar error once and retries on the next Scala buffer", function()
-      jar.ensure = function(_, cb) cb(nil, "SoCLess: could not download URL") end
+    it("reports a jar error once, does not retry on the next Scala buffer, retries on setup", function()
+      local calls = 0
+      jar.ensure = function(_, cb) calls = calls + 1; cb(nil, "SoCLess: could not download URL") end
       require("socless").setup({})
       vim.bo[scala_buffer(true)].filetype = "scala"
       eq(0, #configs)
+      eq(1, #notes)
       eq("SoCLess: could not download URL", notes[1].msg)
       eq(vim.log.levels.ERROR, notes[1].level)
+      vim.bo[scala_buffer(true)].filetype = "scala"
+      eq(1, calls)
+      eq(1, #notes)
       jar.ensure = function(_, cb) cb("/tmp/j.jar") end
+      require("socless").setup({})
+      eq(1, #configs)
+    end)
+
+    it("a missing java is an ERROR naming what was tried, with no download", function()
+      local fetched = 0
+      jar.ensure = function(_, cb) fetched = fetched + 1; cb("/tmp/j.jar") end
+      missing["/nojava"] = true
+      require("socless").setup({ java = "/nojava" })
+      vim.bo[scala_buffer(true)].filetype = "scala"
+      eq(0, fetched)
+      eq(0, #configs)
+      eq(1, #notes)
+      eq(vim.log.levels.ERROR, notes[1].level)
+      eq("SoCLess: java not found (/nojava): set `java` or $JAVA_HOME, see :checkhealth socless", notes[1].msg)
+      -- no phase was taken: once java is there, the next Scala buffer starts
+      missing["/nojava"] = nil
       vim.bo[scala_buffer(true)].filetype = "scala"
       eq(1, #configs)
+    end)
+
+    it("expands ~ in the java option", function()
+      eq(vim.fs.normalize("~/jdk/bin/java"), client.java({ java = "~/jdk/bin/java" }))
+      eq("/", client.java({ java = "~/jdk/bin/java" }):sub(1, 1))
+    end)
+
+    it("leaves settings out of the client config when none is set", function()
+      local c = client.lsp_config({ settings = {} }, "/j.jar")
+      eq(nil, c.settings)
+      eq({ panel = "client" }, c.init_options)
+    end)
+
+    it("notifies an unknown top-level option at WARN", function()
+      require("socless").setup({ bogus = 1 })
+      eq({ { msg = "SoCLess: unknown option 'bogus', ignored", level = vim.log.levels.WARN } }, notes)
+    end)
+
+    it("sends a setting given flat at the top level of the options", function()
+      require("socless").setup({ wave_viewer = "surfer-panel" })
+      vim.bo[scala_buffer(true)].filetype = "scala"
+      eq({ socless = { waveViewer = "surfer-panel" } }, configs[1].cfg.settings)
     end)
 
     it("uses $JAVA_HOME/bin/java, else java", function()
@@ -321,6 +442,33 @@ describe("client", function()
     end)
   end)
 
+  describe("updated (a new jar from :Socless update)", function()
+    it("restarts a started client", function()
+      vim.bo[scala_buffer(true)].filetype = "scala"
+      require("socless").setup({})
+      client.updated()
+      eq({ "socless" }, disabled)
+      eq({ "socless", "socless" }, enabled)
+    end)
+
+    it("starts for the current Scala buffer when no client started", function()
+      local calls = 0
+      jar.ensure = function(_, cb)
+        calls = calls + 1
+        if calls == 1 then return cb(nil, "SoCLess: offline") end
+        cb("/tmp/j.jar")
+      end
+      require("socless").setup({})
+      local buf = scala_buffer(true)
+      vim.bo[buf].filetype = "scala"
+      eq(0, #configs)
+      vim.api.nvim_set_current_buf(buf)
+      client.updated()
+      eq(1, #configs)
+      eq({ "socless" }, enabled)
+    end)
+  end)
+
   describe("codelens", function()
     it("enables lenses for the attaching socless client only", function()
       require("socless").setup({})
@@ -372,6 +520,15 @@ describe("client", function()
       vim.api.nvim_win_set_cursor(0, { 4, 0 })
       client._send_cursor(other)
       eq(3, #sent)
+    end)
+
+    it("sends the same line again after a new socless client attached", function()
+      require("socless").setup({ codelens = false })
+      vim.lsp.get_client_by_id = function(id) return { id = id, name = "socless" } end
+      client._send_cursor(buf)
+      client._on_attach({ buf = buf, data = { client_id = 8 } })
+      client._send_cursor(buf)
+      eq(2, #sent)
     end)
 
     it("sends nothing with follow_cursor = false", function()

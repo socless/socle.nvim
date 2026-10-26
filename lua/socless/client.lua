@@ -13,7 +13,7 @@ local START_GROUP = "socless.start"
 ---@type socless.Config|nil
 local cfg
 ---@class socless.ClientState
----@field phase? "fetching"|"waiting"|"started"
+---@field phase? "fetching"|"waiting"|"started"|"failed" "failed": the jar could not be had; only `setup` or `:Socless update` try again
 ---@field jar? string the server jar, once known
 ---@field last_url? string the last view's panel url
 ---@field opened_url? string the url last opened with success
@@ -30,13 +30,24 @@ function M._reset()
 end
 M._reset()
 
----The java to run: `java`, else $JAVA_HOME/bin/java, else "java".
+---The java to run: `java` (`~` expanded), else $JAVA_HOME/bin/java, else "java".
 ---@param c socless.Config
 function M.java(c)
-  if c.java then return c.java end
+  if c.java then return vim.fs.normalize(c.java) end
   local home = vim.env.JAVA_HOME
   if home and home ~= "" then return home .. "/bin/java" end
   return "java"
+end
+
+---Whether the java to run exists. When it does not, says so: Neovim itself
+---would only log the broken `cmd` and start nothing.
+---@return boolean
+local function java_found()
+  local java = M.java(cfg)
+  if vim.fn.executable(java) == 1 then return true end
+  vim.notify(("SoCLess: java not found (%s): set `java` or $JAVA_HOME, see :checkhealth socless"):format(java),
+    vim.log.levels.ERROR)
+  return false
 end
 
 ---Opens `url` with `open_panel`: nil for `vim.ui.open`, a list (the command,
@@ -120,8 +131,9 @@ function M.lsp_config(c, jar_path)
     -- no build.mill above the file (sbt, a lone file): no client at all
     workspace_required = true,
     init_options = vim.tbl_extend("force", vim.deepcopy(server), { panel = "client" }),
-    -- the server reads this section from workspace/didChangeConfiguration
-    settings = { socless = server },
+    -- the server reads this section from workspace/didChangeConfiguration;
+    -- left out when empty (an empty table would go out as a JSON array)
+    settings = next(server) and { socless = server } or nil,
     handlers = M.handlers,
   }
 end
@@ -132,25 +144,64 @@ function M._can_attach()
   return vim.v.vim_did_enter == 1 or vim.fn.did_filetype() == 1
 end
 
+---Registers the client config for the options in use now. An assignment
+---replaces the config; `vim.lsp.config(name, tbl)` would deep-merge it into
+---the old one, keeping a setting that was removed since.
+local function register()
+  vim.lsp.config.socless = M.lsp_config(cfg, state.jar)
+end
+
 ---Configures and enables the client, with the options in use now.
 local function start()
   state.phase = "started"
-  vim.lsp.config("socless", M.lsp_config(cfg, state.jar))
+  register()
   vim.lsp.enable("socless")
+end
+
+---Restarts a started client with the options in use now: the jar for them
+---first (perhaps a download), then a new config, and a disable (which stops
+---the running servers) and enable, which start a new server for the Scala
+---buffers open. While the jar is not there, the running server stays.
+---@param msg string notified once restarted
+local function restart(msg)
+  if not java_found() then return end
+  state.phase = "fetching"
+  jar.ensure(cfg, function(path, err)
+    state.phase = "started"
+    if not path then return vim.notify(err or "SoCLess: no server jar", vim.log.levels.ERROR) end
+    state.jar = path
+    state.last_cursor = nil
+    register()
+    vim.lsp.enable("socless", false)
+    vim.lsp.enable("socless")
+    -- enable re-attaches the open buffers only after VimEnter or inside a
+    -- FileType event (its doautoall); elsewhere, fire its FileType ourselves
+    if not M._can_attach() then
+      for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].filetype == "scala" then
+          pcall(vim.api.nvim_exec_autocmds, "FileType", { group = "nvim.lsp.enable", buffer = buf })
+        end
+      end
+    end
+    vim.notify(msg, vim.log.levels.INFO)
+  end)
 end
 
 ---Starts the client the first time a Scala buffer of a Mill project shows
 ---up: the jar first (perhaps a download), then config and enable, which
 ---attach the Scala buffers open by then. During startup (a `setup` from
 ---`-c` or an init file, after the buffer loaded) that waits for VimEnter.
+---A missing java is reported each time; a jar that cannot be had only once,
+---until `setup` or `:Socless update`.
 ---@param buf integer
 function M._on_filetype(buf)
   if state.phase or not cfg then return end
   if not vim.fs.root(buf, { "build.mill" }) then return end
+  if not java_found() then return end
   state.phase = "fetching"
   jar.ensure(cfg, function(path, err)
     if not path then
-      state.phase = nil
+      state.phase = "failed"
       return vim.notify(err or "SoCLess: no server jar", vim.log.levels.ERROR)
     end
     state.jar = path
@@ -168,8 +219,22 @@ end
 ---client on the buffer (Metals) stay as they are.
 function M._on_attach(args)
   local c = vim.lsp.get_client_by_id(args.data.client_id)
-  if not (c and c.name == "socless" and cfg and cfg.codelens) then return end
+  if not (c and c.name == "socless") then return end
+  -- a new server knows no cursor yet
+  state.last_cursor = nil
+  if not (cfg and cfg.codelens) then return end
   vim.lsp.codelens.enable(true, { bufnr = args.buf, client_id = c.id })
+end
+
+---After `:Socless update` put a new jar on disk: restarts a started client
+---on it, else starts one for the current buffer when it is a Scala one.
+function M.updated()
+  if not cfg then return end
+  if state.phase == "started" then return restart("SoCLess: restarted on the new server") end
+  if state.phase == "fetching" or state.phase == "waiting" then return end
+  state.phase = nil
+  local buf = vim.api.nvim_get_current_buf()
+  if vim.bo[buf].filetype == "scala" then M._on_filetype(buf) end
 end
 
 ---The socless client attached to `buf`, if any.
@@ -196,17 +261,19 @@ end
 
 ---Installs the autocmds (replacing those of an earlier `setup`) and starts
 ---for the Scala buffers already open (a plugin loaded on `ft = "scala"`).
----When the client already started and the options `changed`, the new config
----is registered, but a running server keeps the old one until
----`:lsp restart socless`.
+---When the client already started and the options `changed`, the server is
+---restarted with them. A start waiting for VimEnter starts over (its jar
+---may have changed), and a jar that could not be had is tried again.
 ---@param c socless.Config
 ---@param changed? boolean
 function M.setup(c, changed)
   cfg = c
-  if changed and state.phase == "started" then
-    vim.lsp.config("socless", M.lsp_config(cfg, state.jar))
-    vim.notify("SoCLess: new options apply after :lsp restart socless", vim.log.levels.INFO)
+  if state.phase == "failed" then state.phase = nil end
+  if changed and state.phase == "waiting" then
+    pcall(vim.api.nvim_del_augroup_by_name, START_GROUP)
+    state.phase = nil
   end
+  if changed and state.phase == "started" then restart("SoCLess: restarted with the new options") end
   local group = vim.api.nvim_create_augroup(GROUP, { clear = true })
   vim.api.nvim_create_autocmd("FileType", {
     group = group,
