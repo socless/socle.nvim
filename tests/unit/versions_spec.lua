@@ -60,4 +60,21 @@ describe("versions", function()
     eq({}, w("1.0.0"))
     eq(1, #w("0.16.0"))
   end)
+
+  -- the docs name the pin; a bump that forgets them fails here
+  it("is the version README.md and doc/socless.txt name", function()
+    local root = vim.fs.dirname(vim.fs.dirname(vim.fs.dirname(debug.getinfo(1, "S").source:sub(2))))
+    local function read(rel)
+      local f = assert(io.open(root .. "/" .. rel))
+      local s = f:read("*a")
+      f:close()
+      return s
+    end
+    local readme, doc = read("README.md"), read("doc/socless.txt")
+    local default = ('version = "%s"'):format(versions.PINNED)
+    eq(true, readme:find(default, 1, true) ~= nil, "README.md: " .. default)
+    eq(true, readme:find(("PINNED`, now %s)"):format(versions.PINNED), 1, true) ~= nil, "README.md: the pin")
+    eq(true, doc:find(default, 1, true) ~= nil, "doc/socless.txt: " .. default)
+    eq(true, doc:find(("tested against (%s)"):format(versions.PINNED), 1, true) ~= nil, "doc/socless.txt: the pin")
+  end)
 end)

@@ -246,9 +246,11 @@ SOCLESS_ROOT=~/dev/socless SOCLESS_JAR=/path/to/socless-lsp-0.17.0.jar \
 
 CI (`.github/workflows/ci.yml`) has two jobs:
 
-- **unit** runs the specs on every push and pull request, on Neovim 0.12.6.
+- **unit** runs the specs on every push to main and every pull request, on
+  Neovim 0.12.6.
 - **integration** runs only when started by hand (Actions, "Run workflow"),
-  because e-ban/SoCless is private. It checks out SoCLess v0.17.0, downloads
+  because e-ban/SoCless is private. It checks out SoCLess at the pinned
+  version (read from `versions.PINNED`), downloads
   and checks its release jar, and runs `tests/integration` (Java 21, no
   Verilator: View design does not simulate). It needs a repository secret,
   `SOCLESS_TOKEN`: a fine-grained personal access token with read access to

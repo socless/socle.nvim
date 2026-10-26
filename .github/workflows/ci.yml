@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -10,11 +11,10 @@ permissions:
 
 env:
   NVIM_VERSION: v0.12.6
-  SOCLESS_VERSION: "0.17.0"
 
 jobs:
   unit:
-    name: Unit tests (Neovim stable, v0.12.6)
+    name: Unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -43,6 +43,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Install Neovim ${{ env.NVIM_VERSION }}
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/nvim.tar.gz" \
+            "https://github.com/neovim/neovim/releases/download/$NVIM_VERSION/nvim-linux-x86_64.tar.gz"
+          tar -xzf "$RUNNER_TEMP/nvim.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
+
+      # One source for the pin: lua/socless/versions.lua.
+      - name: Read the pinned server version
+        run: |
+          pin=$(nvim --headless -u NONE --cmd 'set rtp+=.' -l - <<<'io.write(require("socless.versions").PINNED)')
+          test -n "$pin"
+          echo "SOCLESS_VERSION=$pin" >> "$GITHUB_ENV"
+
       - name: Check out SoCLess v${{ env.SOCLESS_VERSION }}
         uses: actions/checkout@v7
         with:
@@ -50,6 +64,7 @@ jobs:
           ref: v${{ env.SOCLESS_VERSION }}
           path: socless
           token: ${{ secrets.SOCLESS_TOKEN }}
+          persist-credentials: false
 
       # The server is `java -jar` and needs Java 21. Verilator is not needed:
       # View design does not simulate.
@@ -80,13 +95,6 @@ jobs:
           (cd "$RUNNER_TEMP/jar" && sha256sum -c --ignore-missing SHA256SUMS)
           echo "SOCLESS_JAR=$RUNNER_TEMP/jar/socless-lsp-$SOCLESS_VERSION.jar" >> "$GITHUB_ENV"
           echo "SOCLESS_ROOT=$GITHUB_WORKSPACE/socless" >> "$GITHUB_ENV"
-
-      - name: Install Neovim ${{ env.NVIM_VERSION }}
-        run: |
-          curl -fsSL -o "$RUNNER_TEMP/nvim.tar.gz" \
-            "https://github.com/neovim/neovim/releases/download/$NVIM_VERSION/nvim-linux-x86_64.tar.gz"
-          tar -xzf "$RUNNER_TEMP/nvim.tar.gz" -C "$RUNNER_TEMP"
-          echo "$RUNNER_TEMP/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
 
       # The runner skips tests/integration without SOCLESS_ROOT and SOCLESS_JAR;
       # here both are set, so a missing spec must fail instead of passing empty.
