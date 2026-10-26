@@ -166,8 +166,11 @@ end
 local function restart(msg)
   if not java_found() then return end
   state.phase = "fetching"
+  local wanted = jar.path(cfg)
   jar.ensure(cfg, function(path, err)
     state.phase = "started"
+    -- a setup during the download asked for another jar: get that one
+    if jar.path(cfg) ~= wanted then return restart(msg) end
     if not path then return vim.notify(err or "SoCLess: no server jar", vim.log.levels.ERROR) end
     state.jar = path
     state.last_cursor = nil
@@ -199,7 +202,13 @@ function M._on_filetype(buf)
   if not vim.fs.root(buf, { "build.mill" }) then return end
   if not java_found() then return end
   state.phase = "fetching"
+  local wanted = jar.path(cfg)
   jar.ensure(cfg, function(path, err)
+    -- a setup during the download asked for another jar: start over
+    if jar.path(cfg) ~= wanted then
+      state.phase = nil
+      return M._on_filetype(buf)
+    end
     if not path then
       state.phase = "failed"
       return vim.notify(err or "SoCLess: no server jar", vim.log.levels.ERROR)

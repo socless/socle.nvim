@@ -165,6 +165,29 @@ describe("client", function()
       eq("/b.jar", configs[2].cfg.cmd[4])
     end)
 
+    it("a second setup during the first download starts with the new options' jar", function()
+      jar.ensure = function(c, cb) vim.defer_fn(function() cb(c.server_jar) end, 20) end
+      vim.bo[scala_buffer(true)].filetype = "scala"
+      require("socless").setup({ server_jar = "/a.jar" })
+      require("socless").setup({ server_jar = "/b.jar" })
+      assert(vim.wait(1000, function() return #enabled > 0 end), "never enabled")
+      vim.wait(100)
+      eq("/b.jar", configs[#configs].cfg.cmd[4])
+      eq(1, #configs)
+    end)
+
+    it("a second setup during a restart's download restarts with the newest options' jar", function()
+      jar.ensure = function(c, cb) cb(c.server_jar) end
+      vim.bo[scala_buffer(true)].filetype = "scala"
+      require("socless").setup({ server_jar = "/a.jar" })
+      jar.ensure = function(c, cb) vim.defer_fn(function() cb(c.server_jar) end, 20) end
+      require("socless").setup({ server_jar = "/b.jar" })
+      require("socless").setup({ server_jar = "/c.jar" })
+      assert(vim.wait(1000, function() return #disabled > 0 end), "never restarted")
+      vim.wait(100)
+      eq("/c.jar", configs[#configs].cfg.cmd[4])
+    end)
+
     it("a second setup replaces the registered config: a removed setting does not survive", function()
       vim.lsp.config = real.config
       local ok, err = pcall(function()

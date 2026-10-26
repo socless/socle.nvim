@@ -61,10 +61,8 @@ server ...", then "SoCLess: server ... ready").
   -- url = "git@github.com:e-ban/socless.nvim.git",
   ft = "scala",
   cmd = "Socless",
-  opts = {
-    -- the options and the settings, flat (see Options), for example:
-    -- wave_viewer = "surfer-panel",
-  },
+  -- the options and the settings, flat (see Options)
+  opts = { wave_viewer = "surfer-panel" },
   keys = {
     { "<leader>cV", "<cmd>Socless view<cr>", ft = "scala", desc = "SoCLess: view design" },
     { "<leader>cX", "<cmd>Socless simulate<cr>", ft = "scala", desc = "SoCLess: simulate" },
