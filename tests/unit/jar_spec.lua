@@ -7,11 +7,32 @@ local SUMS_URL = BASE .. "SHA256SUMS"
 -- A NUL byte, so a hash that stops at the first NUL fails the match.
 local CONTENT = "PK\3\4fake\0jar\0bytes"
 
+local HASH = vim.fn.executable("sha256sum") == 1 and { "sha256sum" } or { "shasum", "-a", "256" }
 local function sha256(s)
-  return vim.split(vim.system({ "sha256sum" }, { stdin = s }):wait().stdout, " ")[1]
+  return vim.split(vim.system(HASH, { stdin = s }):wait().stdout, " ")[1]
 end
 
-local data, real_stdpath, real_fetch
+local data, real_stdpath, real_fetch, real_fetch_gh, real_executable
+---Overrides for `vim.fn.executable` (1 or 0); other names are looked up for real.
+local tools
+
+---A fake gh fetcher: serves `files[asset]` after a short delay; a missing asset fails.
+local function fake_gh(files)
+  local calls = {}
+  jar._fetch_gh = function(version, asset, dest, cb)
+    table.insert(calls, version .. " " .. asset)
+    vim.defer_fn(function()
+      if files[asset] == nil then
+        return cb("release not found")
+      end
+      local f = assert(io.open(dest, "wb"))
+      f:write(files[asset])
+      f:close()
+      cb(nil)
+    end, 20)
+  end
+  return calls
+end
 
 ---A fake fetcher: serves `files[url]` after a short delay; a missing url fails.
 local function fake(files)
@@ -54,15 +75,24 @@ describe("jar", function()
   before_each(function()
     data = vim.fn.tempname()
     vim.fn.mkdir(data, "p")
-    real_stdpath, real_fetch = vim.fn.stdpath, jar._fetch
+    real_stdpath, real_fetch, real_fetch_gh = vim.fn.stdpath, jar._fetch, jar._fetch_gh
+    real_executable = vim.fn.executable
     vim.fn.stdpath = function(what)
       if what == "data" then return data end
       return real_stdpath(what)
     end
+    -- No gh unless a spec says so, and never the real one.
+    tools = { gh = 0 }
+    vim.fn.executable = function(name)
+      if tools[name] ~= nil then return tools[name] end
+      return real_executable(name)
+    end
+    fake_gh({})
   end)
 
   after_each(function()
-    vim.fn.stdpath, jar._fetch = real_stdpath, real_fetch
+    vim.fn.stdpath, jar._fetch, jar._fetch_gh = real_stdpath, real_fetch, real_fetch_gh
+    vim.fn.executable = real_executable
     vim.fn.delete(data, "rf")
   end)
 
@@ -170,6 +200,109 @@ describe("jar", function()
       eq(nil, res.path)
       eq(true, res.err:find(data .. "/missing.jar", 1, true) ~= nil, res.err)
       eq({}, calls)
+    end)
+  end)
+
+  describe("gh fallback", function()
+    local SUMS = sha256(CONTENT) .. "  socless-lsp-0.17.0.jar\n"
+
+    it("downloads with gh when curl fails", function()
+      tools.gh = 1
+      local calls = fake({})
+      local gh_calls = fake_gh({ SHA256SUMS = SUMS, ["socless-lsp-0.17.0.jar"] = CONTENT })
+      local res = ensure(config.merge({}))
+      eq(nil, res.err)
+      eq(CONTENT, vim.fn.readblob(res.path))
+      eq({ SUMS_URL, JAR_URL }, calls)
+      eq({ "0.17.0 SHA256SUMS", "0.17.0 socless-lsp-0.17.0.jar" }, gh_calls)
+      eq({ "socless-lsp-0.17.0.jar" }, listing())
+    end)
+
+    it("only asks gh for the file curl failed on", function()
+      tools.gh = 1
+      fake({ [SUMS_URL] = SUMS })
+      local gh_calls = fake_gh({ ["socless-lsp-0.17.0.jar"] = CONTENT })
+      eq(nil, ensure(config.merge({})).err)
+      eq({ "0.17.0 socless-lsp-0.17.0.jar" }, gh_calls)
+    end)
+
+    it("says curl and gh both failed and the repo may be private", function()
+      tools.gh = 1
+      fake({ [SUMS_URL] = SUMS })
+      local gh_calls = fake_gh({})
+      local res = ensure(config.merge({}))
+      eq(nil, res.path)
+      for _, want in ipairs({ JAR_URL, "curl", "gh", "private", "gh auth login", "server_jar" }) do
+        eq(true, res.err:find(want, 1, true) ~= nil, want .. " in " .. res.err)
+      end
+      eq(1, #gh_calls)
+      eq({}, listing())
+    end)
+
+    it("does not try gh when it is not installed", function()
+      tools.gh = 0
+      fake({})
+      local gh_calls = fake_gh({ SHA256SUMS = SUMS, ["socless-lsp-0.17.0.jar"] = CONTENT })
+      local res = ensure(config.merge({}))
+      eq(nil, res.path)
+      eq(true, res.err:find(SUMS_URL, 1, true) ~= nil, res.err)
+      eq({}, gh_calls)
+    end)
+
+    it("builds the gh command from the repo constant", function()
+      eq("e-ban/SoCless", jar.REPO)
+      eq({ "gh", "release", "download", "v0.17.0", "--repo", "e-ban/SoCless", "--pattern",
+        "socless-lsp-0.17.0.jar", "--output", "/x/y.part", "--clobber" },
+        jar._gh_cmd("0.17.0", "socless-lsp-0.17.0.jar", "/x/y.part"))
+    end)
+  end)
+
+  describe("checksum tool", function()
+    local function good()
+      fake({ [SUMS_URL] = sha256(CONTENT) .. "  socless-lsp-0.17.0.jar\n", [JAR_URL] = CONTENT })
+    end
+
+    it("uses sha256sum when present", function()
+      eq({ "sha256sum", "/a.jar" }, jar._hash_cmd("/a.jar"))
+    end)
+
+    it("falls back to shasum -a 256", function()
+      tools.sha256sum = 0
+      eq({ "shasum", "-a", "256", "/a.jar" }, jar._hash_cmd("/a.jar"))
+    end)
+
+    it("verifies a real jar with shasum", function()
+      if real_executable("shasum") ~= 1 then return io.write("  (skipped: no shasum)\n") end
+      tools.sha256sum = 0
+      good()
+      local res = ensure(config.merge({}))
+      eq(nil, res.err)
+      eq(CONTENT, vim.fn.readblob(res.path))
+    end)
+
+    it("names both tools when neither exists", function()
+      tools.sha256sum, tools.shasum = 0, 0
+      eq(nil, jar._hash_cmd("/a.jar"))
+      good()
+      local res = ensure(config.merge({}))
+      eq(nil, res.path)
+      eq(true, res.err:find("sha256sum", 1, true) ~= nil, res.err)
+      eq(true, res.err:find("shasum", 1, true) ~= nil, res.err)
+      eq({}, listing())
+    end)
+
+    it("uses an injected hasher", function()
+      local real = jar._sha256
+      local seen
+      jar._sha256 = function(path, cb) seen = path; cb(string.rep("0", 64)) end
+      local ok, err = pcall(function()
+        fake({ [SUMS_URL] = string.rep("0", 64) .. "  socless-lsp-0.17.0.jar\n", [JAR_URL] = CONTENT })
+        local res = ensure(config.merge({}))
+        eq(nil, res.err)
+        eq(data .. "/socless/socless-lsp-0.17.0.jar.part", seen)
+      end)
+      jar._sha256 = real
+      assert(ok, err)
     end)
   end)
 
