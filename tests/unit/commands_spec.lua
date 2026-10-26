@@ -95,6 +95,55 @@ describe("view and simulate", function()
     eq({ "workspace/executeCommand", { command = VIEW, arguments = { "file:///x", "S", "t0" } } }, requests[1])
   end)
 
+  it("reports a failed codeLens request and runs nothing", function()
+    vim.lsp.codelens.get = function() return {} end
+    client._get = function()
+      return {
+        id = 7,
+        request = function(_, method, _, handler)
+          table.insert(requests, method)
+          vim.defer_fn(function() handler({ code = -32603, message = "boom" }, nil, {}) end, 10)
+          return true, 1
+        end,
+      }
+    end
+    commands.run("view")
+    wait_for(99)
+    eq({ "textDocument/codeLens" }, requests)
+    eq(vim.log.levels.ERROR, notes[1].level)
+    eq(true, notes[1].msg:find("boom", 1, true) ~= nil)
+  end)
+
+  it("reports a codeLens request that could not be sent", function()
+    vim.lsp.codelens.get = function() return {} end
+    client._get = function()
+      return { id = 7, request = function() return false, nil end }
+    end
+    commands.run("view")
+    eq(1, #notes)
+    eq(vim.log.levels.ERROR, notes[1].level)
+  end)
+
+  it("cancels the codeLens request after the timeout and says so", function()
+    vim.lsp.codelens.get = function() return {} end
+    local cancelled
+    client._get = function()
+      return {
+        id = 7,
+        request = function() return true, 42 end,
+        cancel_request = function(_, id) cancelled = id end,
+      }
+    end
+    local saved = commands._lens_timeout_ms
+    commands._lens_timeout_ms = 30
+    commands.run("view")
+    local ok = vim.wait(1000, function() return #notes > 0 end)
+    commands._lens_timeout_ms = saved
+    assert(ok, "no timeout notice")
+    eq(42, cancelled)
+    eq("SoCLess: timed out waiting for code lenses", notes[1].msg)
+  end)
+
   it("says no ChiselSim test here when there is no lens", function()
     vim.lsp.codelens.get = function() return {} end
     fake({})

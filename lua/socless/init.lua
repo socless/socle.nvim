@@ -15,11 +15,15 @@ function M.setup(opts)
   end
   local config = require("socless.config")
   local cfg = config.merge(opts)
-  local _, unknown = config.to_server(cfg.settings)
-  for _, msg in ipairs(unknown) do vim.notify(msg, vim.log.levels.WARN) end
-  for _, msg in ipairs(require("socless.versions").warnings(cfg)) do vim.notify(msg, vim.log.levels.WARN) end
+  -- a second setup with the same options warns and reconfigures nothing
+  local changed = not vim.deep_equal(cfg, M.config)
+  if changed then
+    local _, unknown = config.to_server(cfg.settings)
+    for _, msg in ipairs(unknown) do vim.notify(msg, vim.log.levels.WARN) end
+    for _, msg in ipairs(require("socless.versions").warnings(cfg)) do vim.notify(msg, vim.log.levels.WARN) end
+  end
   M.config = cfg
-  require("socless.client").setup(cfg)
+  require("socless.client").setup(cfg, changed)
 end
 
 return M

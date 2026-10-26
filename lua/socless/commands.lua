@@ -6,7 +6,8 @@ local client = require("socless.client")
 M.SUBCOMMANDS = { "view", "simulate", "panel", "update", "log", "health" }
 
 local COMMAND = { view = "socless.viewDesign", simulate = "socless.simulate" }
-local LENS_TIMEOUT_MS = 10000
+---How long `view` and `simulate` wait for the server's lenses.
+M._lens_timeout_ms = 10000
 
 ---The subcommands starting with `arglead`.
 ---@param arglead string
@@ -40,22 +41,26 @@ local function lenses_of(c, buf, cb)
     vim.lsp.codelens.get({ bufnr = buf, client_id = c.id }) or {})
   if #shown > 0 then return cb(shown) end
   local done = false
-  local function finish(lenses)
+  local ok, id = c:request("textDocument/codeLens", { textDocument = { uri = vim.uri_from_bufnr(buf) } },
+    function(err, result)
+      if done then return end -- timed out (and cancelled) already
+      done = true
+      if err then
+        return vim.notify(("SoCLess: cannot get the lenses: %s"):format(err.message or vim.inspect(err)),
+          vim.log.levels.ERROR)
+      end
+      cb(result or {})
+    end, buf)
+  if not ok then
+    done = true
+    return vim.notify("SoCLess: cannot ask the server for code lenses (it stopped?)", vim.log.levels.ERROR)
+  end
+  vim.defer_fn(function()
     if done then return end
     done = true
-    cb(lenses or {})
-  end
-  c:request("textDocument/codeLens", { textDocument = { uri = vim.uri_from_bufnr(buf) } },
-    function(err, result)
-      if err then
-        vim.notify(("SoCLess: cannot get the lenses: %s"):format(err.message or vim.inspect(err)),
-          vim.log.levels.ERROR)
-        done = true
-        return
-      end
-      finish(result)
-    end, buf)
-  vim.defer_fn(finish, LENS_TIMEOUT_MS)
+    c:cancel_request(id)
+    vim.notify("SoCLess: timed out waiting for code lenses", vim.log.levels.WARN)
+  end, M._lens_timeout_ms)
 end
 
 ---Runs the View design or Simulate lens closest to the cursor.

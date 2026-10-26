@@ -6,16 +6,27 @@ local jar = require("socless.jar")
 local config = require("socless.config")
 
 local GROUP = "socless"
+-- the start waiting for VimEnter: its own group, so a second `setup` (which
+-- clears GROUP) keeps it
+local START_GROUP = "socless.start"
 
 ---@type socless.Config|nil
 local cfg
----@type {started: boolean, starting: boolean, last_url?: string, opened_url?: string, last_status?: string}
+---@class socless.ClientState
+---@field phase? "fetching"|"waiting"|"started"
+---@field jar? string the server jar, once known
+---@field last_url? string the last view's panel url
+---@field opened_url? string the url last opened with success
+---@field last_ok? string suite and test of the last "design ready"
+---@field prev_status? string status, suite and test of the last status
+---@field last_cursor? string buffer and line of the last socless/cursor
+---@type socless.ClientState
 local state
 
 ---Forgets everything (for tests).
 function M._reset()
   cfg = nil
-  state = { started = false, starting = false }
+  state = {}
 end
 M._reset()
 
@@ -29,7 +40,7 @@ local function java(c)
 end
 
 ---Opens `url` with `open_panel`: nil for `vim.ui.open`, a list (the command,
----the url appended) or a function.
+---the url appended) or a function. Raises when it cannot.
 ---@param open_panel nil|string[]|fun(url: string)
 ---@param url string
 function M._open_with(open_panel, url)
@@ -38,19 +49,23 @@ function M._open_with(open_panel, url)
   elseif type(open_panel) == "table" then
     vim.system(vim.list_extend(vim.deepcopy(open_panel), { url }), { detach = true })
   else
-    vim.ui.open(url)
+    -- 0.12 returns nil and the error instead of raising
+    local _, err = vim.ui.open(url)
+    if err then error(err, 0) end
   end
 end
 
 ---Opens the panel at `url`, unless it is the url opened last (the browser tab
----follows the live design). `force` opens it anyway.
+---follows the live design). `force` opens it anyway. A failure is reported,
+---and the next view tries again.
 ---@param url string
 ---@param force? boolean
 function M.open(url, force)
   if not force and url == state.opened_url then return end
-  state.opened_url = url
   local ok, err = pcall(M._open_with, cfg and cfg.open_panel, url)
-  if not ok then
+  if ok then
+    state.opened_url = url
+  else
     vim.notify(("SoCLess: cannot open the panel at %s: %s"):format(url, err), vim.log.levels.ERROR)
   end
 end
@@ -63,17 +78,6 @@ function M.open_last()
   M.open(state.last_url, true)
 end
 
-local OUTCOMES = { ok = true, error = true, simulating = true }
-
----The text of a `socless/status` notification.
-local function status_text(p)
-  local test = (p.test and p.test ~= "") and p.test or "the test"
-  if p.status == "ok" then return ("SoCLess: %s: design ready"):format(test) end
-  if p.status == "simulating" then return ("SoCLess: simulating %s"):format(test) end
-  local msg = (p.message or ""):gsub("^SoCLess: ", "")
-  return ("SoCLess: %s: %s"):format(test, msg ~= "" and msg or "error")
-end
-
 ---Handlers for the server's notifications, given to the client's config.
 M.handlers = {
   ---`{url, test}`, sent on every view.
@@ -83,21 +87,24 @@ M.handlers = {
     M.open(params.url, false)
   end,
   ---`{status, suite, test, message}`, status one of idle, running, simulating,
-  ---ok, error. An outcome (ok, error, simulating) notifies once; any other
-  ---status (a new run starting) clears it, so the next outcome notifies again.
+  ---ok, error. Says "design ready" when a test other than the last one shown
+  ---ready gets its design (a save's rerun of the same test stays quiet), and
+  ---"simulating" when a simulation starts. An error, or an ok with a message
+  ---(a simulation's end), is left to the server's own window/showMessage.
   ["socless/status"] = function(_, params)
     if not params then return end
-    if not OUTCOMES[params.status] then
-      state.last_status = nil
-      return
+    local test_key = (params.suite or "") .. "\0" .. (params.test or "")
+    local key = (params.status or "") .. "\0" .. test_key
+    local prev = state.prev_status
+    state.prev_status = key
+    local text
+    if params.status == "ok" and (params.message or "") == "" and test_key ~= state.last_ok then
+      state.last_ok = test_key
+      text = ("SoCLess: %s: design ready"):format(params.test or "the test")
+    elseif params.status == "simulating" and key ~= prev then
+      text = ("SoCLess: simulating %s"):format(params.test or "the test")
     end
-    local key = params.status .. "\0" .. (params.message or "")
-    if key == state.last_status then return end
-    state.last_status = key
-    if cfg and cfg.notify_status then
-      local level = params.status == "error" and vim.log.levels.WARN or vim.log.levels.INFO
-      vim.notify(status_text(params), level)
-    end
+    if text and cfg and cfg.notify_status then vim.notify(text, vim.log.levels.INFO) end
   end,
 }
 
@@ -125,28 +132,35 @@ function M._can_attach()
   return vim.v.vim_did_enter == 1 or vim.fn.did_filetype() == 1
 end
 
+---Configures and enables the client, with the options in use now.
+local function start()
+  state.phase = "started"
+  vim.lsp.config("socless", M.lsp_config(cfg, state.jar))
+  vim.lsp.enable("socless")
+end
+
 ---Starts the client the first time a Scala buffer of a Mill project shows
 ---up: the jar first (perhaps a download), then config and enable, which
 ---attach the Scala buffers open by then. During startup (a `setup` from
 ---`-c` or an init file, after the buffer loaded) that waits for VimEnter.
 ---@param buf integer
 function M._on_filetype(buf)
-  if state.started or state.starting or not cfg then return end
+  if state.phase or not cfg then return end
   if not vim.fs.root(buf, { "build.mill" }) then return end
-  state.starting = true
+  state.phase = "fetching"
   jar.ensure(cfg, function(path, err)
-    state.starting = false
     if not path then
+      state.phase = nil
       return vim.notify(err or "SoCLess: no server jar", vim.log.levels.ERROR)
     end
-    state.started = true
-    local c = cfg
-    local function start()
-      vim.lsp.config("socless", M.lsp_config(c, path))
-      vim.lsp.enable("socless")
-    end
+    state.jar = path
     if M._can_attach() then return start() end
-    vim.api.nvim_create_autocmd("VimEnter", { group = GROUP, once = true, callback = start })
+    state.phase = "waiting"
+    vim.api.nvim_create_autocmd("VimEnter", {
+      group = vim.api.nvim_create_augroup(START_GROUP, { clear = true }),
+      once = true,
+      callback = start,
+    })
   end)
 end
 
@@ -165,7 +179,8 @@ function M.get(buf)
   return vim.lsp.get_clients({ name = "socless", bufnr = buf })[1]
 end
 
----Sends `socless/cursor {uri, line}` (0-based) for the cursor in `buf`.
+---Sends `socless/cursor {uri, line}` (0-based) for the cursor in `buf`, when
+---the buffer or the line changed since the last one sent.
 ---@param buf integer
 function M._send_cursor(buf)
   if not (cfg and cfg.follow_cursor) then return end
@@ -173,14 +188,25 @@ function M._send_cursor(buf)
   local win = vim.fn.bufwinid(buf)
   if not c or win == -1 then return end
   local line = vim.api.nvim_win_get_cursor(win)[1] - 1
+  local key = buf .. ":" .. line
+  if key == state.last_cursor then return end
+  state.last_cursor = key
   c:notify("socless/cursor", { uri = vim.uri_from_bufnr(buf), line = line })
 end
 
 ---Installs the autocmds (replacing those of an earlier `setup`) and starts
 ---for the Scala buffers already open (a plugin loaded on `ft = "scala"`).
+---When the client already started and the options `changed`, the new config
+---is registered, but a running server keeps the old one until
+---`:lsp restart socless`.
 ---@param c socless.Config
-function M.setup(c)
+---@param changed? boolean
+function M.setup(c, changed)
   cfg = c
+  if changed and state.phase == "started" then
+    vim.lsp.config("socless", M.lsp_config(cfg, state.jar))
+    vim.notify("SoCLess: new options apply after :lsp restart socless", vim.log.levels.INFO)
+  end
   local group = vim.api.nvim_create_augroup(GROUP, { clear = true })
   vim.api.nvim_create_autocmd("FileType", {
     group = group,
