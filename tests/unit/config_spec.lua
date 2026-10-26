@@ -26,6 +26,39 @@ describe("config.merge", function()
   end)
 end)
 
+describe("config.merge with flat settings", function()
+  it("lifts a top-level setting into settings, so it reaches the server", function()
+    local cfg, warnings = config.merge({ wave_flag = "emitFst", wave_viewer = "surfer-panel" })
+    eq({ wave_flag = "emitFst", wave_viewer = "surfer-panel" }, cfg.settings)
+    eq(nil, cfg.wave_viewer)
+    eq(nil, cfg.wave_flag)
+    eq({}, warnings)
+    eq({ waveFlag = "emitFst", waveViewer = "surfer-panel" }, (config.to_server(cfg.settings)))
+  end)
+
+  it("keeps the settings value when a key is given in both places", function()
+    local cfg = config.merge({ wave_viewer = "surfer", settings = { wave_viewer = "surfer-panel" } })
+    eq({ wave_viewer = "surfer-panel" }, cfg.settings)
+  end)
+
+  it("warns once about an unknown top-level option and drops it", function()
+    local cfg, warnings = config.merge({ bogus = 1, java = "/opt/java", server_jar = "/s.jar" })
+    eq({ "SoCLess: unknown option 'bogus', ignored" }, warnings)
+    eq(nil, cfg.bogus)
+    eq("/opt/java", cfg.java)
+    eq("/s.jar", cfg.server_jar)
+  end)
+
+  it("knows every option, the nil defaults included", function()
+    local fn = function() end
+    local _, warnings = config.merge({
+      version = "0.16.0", server_jar = "/s.jar", java = "/j", codelens = false, follow_cursor = false,
+      open_panel = fn, notify_status = false, settings = {},
+    })
+    eq({}, warnings)
+  end)
+end)
+
 describe("config.to_server", function()
   it("sends only the set keys, in camelCase", function()
     local out, warnings = config.to_server({ wave_viewer = "surfer-panel" })
@@ -37,7 +70,7 @@ describe("config.to_server", function()
     local out = config.to_server({
       wave_flag = "emitVcd",
       surfer_command = "/opt/surfer",
-      wave_viewer = "command",
+      wave_viewer = "custom",
       wave_viewer_command = "gtkwave {file}",
       waves_follow_selection = false,
       waves_show_clock_reset = true,
@@ -49,7 +82,7 @@ describe("config.to_server", function()
     eq({
       waveFlag = "emitVcd",
       surferCommand = "/opt/surfer",
-      waveViewer = "command",
+      waveViewer = "custom",
       waveViewerCommand = "gtkwave {file}",
       wavesFollowSelection = false,
       wavesShowClockReset = true,

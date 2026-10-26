@@ -52,11 +52,30 @@ M.server_keys = {
   waves_follow_delay_ms = "wavesFollowDelayMs",
 }
 
----The defaults with the user's options on top (a fresh table).
+---The top-level options (the nil ones are absent from `defaults`).
+M.options = { "version", "server_jar", "java", "codelens", "follow_cursor", "open_panel", "notify_status", "settings" }
+
+---The defaults with the user's options on top (a fresh table). A setting
+---given flat at the top level (`wave_viewer = ...`) goes into `settings`,
+---where the same key given under `settings` wins. Any other unknown option
+---is left out, with one warning each.
 ---@param user? table
 ---@return socless.Config
+---@return string[] warnings
 function M.merge(user)
-  return vim.tbl_deep_extend("force", vim.deepcopy(M.defaults), user or {})
+  local opts, settings, warnings = {}, {}, {}
+  for key, value in pairs(user or {}) do
+    if vim.tbl_contains(M.options, key) then
+      opts[key] = value
+    elseif M.server_keys[key] then
+      settings[key] = value
+    else
+      table.insert(warnings, ("SoCLess: unknown option '%s', ignored"):format(key))
+    end
+  end
+  opts.settings = vim.tbl_extend("force", settings, opts.settings or {})
+  table.sort(warnings)
+  return vim.tbl_deep_extend("force", vim.deepcopy(M.defaults), opts), warnings
 end
 
 ---The server's settings object for `settings`: only the keys that are set, in
