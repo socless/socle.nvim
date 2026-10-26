@@ -3,12 +3,13 @@ local M = {}
 
 local MIN_JAVA = 21
 
----Runs `cmd` and waits (5 s at most: `gh auth status` may ask the network).
----Replaced in tests.
+---Runs `cmd` and waits (5 s at most by default: `gh auth status` may ask the
+---network). Replaced in tests.
 ---@param cmd string[]
+---@param timeout_ms? integer
 ---@return {code: integer, stdout: string, stderr: string}
-function M._run(cmd)
-  local ok, res = pcall(function() return vim.system(cmd, { text = true }):wait(5000) end)
+function M._run(cmd, timeout_ms)
+  local ok, res = pcall(function() return vim.system(cmd, { text = true }):wait(timeout_ms or 5000) end)
   if not ok then return { code = -1, stdout = "", stderr = tostring(res) } end
   return { code = res.code, stdout = res.stdout or "", stderr = res.stderr or "" }
 end
@@ -43,6 +44,35 @@ local function check_java(cfg)
   vim.health.ok(("java %d (%s)"):format(major, java))
 end
 
+---Reports a downloaded jar: the pinned version's is hashed again and
+---compared with PINNED_SHA256 (a few hundred ms; checkhealth is synchronous).
+---@param cfg socless.Config
+---@param path string
+local function check_pinned_hash(cfg, path)
+  local versions = require("socless.versions")
+  if cfg.version ~= versions.PINNED then
+    return vim.health.ok(("server %s: %s (checked against the release's SHA256SUMS when downloaded)")
+      :format(cfg.version, path))
+  end
+  local jar = require("socless.jar")
+  local cmd = jar._hash_cmd(path)
+  if not cmd then
+    return vim.health.warn(("server %s: %s (cannot check its sha256: neither sha256sum nor shasum)")
+      :format(cfg.version, path))
+  end
+  local res = M._run(cmd, 60000)
+  local got = res.code == 0 and jar._parse_hash(res.stdout)
+  if not got then
+    return vim.health.warn(("server %s: %s (cannot check its sha256: %s)")
+      :format(cfg.version, path, vim.trim(res.stderr ~= "" and res.stderr or res.stdout)))
+  end
+  if got ~= versions.PINNED_SHA256 then
+    return vim.health.error(("server %s: %s does not match the pinned sha256 (expected %s, got %s)")
+      :format(cfg.version, path, versions.PINNED_SHA256, got), { "Run :Socless update to download it again" })
+  end
+  vim.health.ok(("server %s: %s (matches the pinned sha256)"):format(cfg.version, path))
+end
+
 ---Reports the jar; returns whether it must still be downloaded.
 ---@param cfg socless.Config
 ---@return boolean need_download
@@ -58,7 +88,7 @@ local function check_jar(cfg)
     return false
   end
   if present then
-    vim.health.ok(("server %s: %s (checksum verified when it was downloaded)"):format(cfg.version, path))
+    check_pinned_hash(cfg, path)
     return false
   end
   vim.health.warn(("server %s not downloaded yet: %s"):format(cfg.version, path),

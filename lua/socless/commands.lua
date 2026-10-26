@@ -88,25 +88,24 @@ local function run_lens(which)
   end)
 end
 
----Downloads the pinned jar again, then restarts a running client on it.
+---Downloads the jar again (the one on disk stays until the new one
+---verified), then restarts the client on it, or starts one.
 local function update(cfg)
   local jar = require("socless.jar")
   if cfg.server_jar then
     return vim.notify("SoCLess: server_jar is set, nothing to download", vim.log.levels.INFO)
   end
-  jar.remove(cfg)
   jar.ensure(cfg, function(path, err)
     if not path then return vim.notify(err, vim.log.levels.ERROR) end
-    vim.notify(("SoCLess: downloaded %s"):format(path), vim.log.levels.INFO)
-    if #vim.lsp.get_clients({ name = "socless" }) > 0 then vim.cmd("lsp restart socless") end
-  end)
+    client.updated()
+  end, { force = true })
 end
 
 ---Runs one subcommand.
 ---@param sub string|nil
 function M.run(sub)
   if sub == "health" then return vim.cmd("checkhealth socless") end
-  if sub == "log" then return vim.cmd.tabedit(vim.lsp.get_log_path()) end
+  if sub == "log" then return vim.cmd.tabedit(vim.lsp.log.get_filename()) end
   if not vim.tbl_contains(M.SUBCOMMANDS, sub) then
     return vim.notify(("SoCLess: unknown subcommand %s (expected %s)")
       :format(vim.inspect(sub), table.concat(M.SUBCOMMANDS, ", ")), vim.log.levels.ERROR)

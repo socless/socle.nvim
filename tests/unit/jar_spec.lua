@@ -12,7 +12,10 @@ local function sha256(s)
   return vim.split(vim.system(HASH, { stdin = s }):wait().stdout, " ")[1]
 end
 
-local data, real_stdpath, real_fetch, real_fetch_gh, real_executable
+local versions = require("socless.versions")
+local data, real_stdpath, real_fetch, real_fetch_gh, real_executable, real_notify, real_pin
+---What `vim.notify` got, as { msg, level }.
+local notes
 ---Overrides for `vim.fn.executable` (1 or 0); other names are looked up for real.
 local tools
 
@@ -77,6 +80,13 @@ describe("jar", function()
     vim.fn.mkdir(data, "p")
     real_stdpath, real_fetch, real_fetch_gh = vim.fn.stdpath, jar._fetch, jar._fetch_gh
     real_executable = vim.fn.executable
+    real_notify = vim.notify
+    notes = {}
+    vim.notify = function(msg, level) table.insert(notes, { msg = msg, level = level }) end
+    -- Most specs check against SHA256SUMS, which applies to a version the user
+    -- set: with this pin, 0.17.0 is such a version. "pinned hash" pins it.
+    real_pin = { versions.PINNED, versions.PINNED_SHA256 }
+    versions.PINNED = "0.0.0-test"
     vim.fn.stdpath = function(what)
       if what == "data" then return data end
       return real_stdpath(what)
@@ -93,6 +103,8 @@ describe("jar", function()
   after_each(function()
     vim.fn.stdpath, jar._fetch, jar._fetch_gh = real_stdpath, real_fetch, real_fetch_gh
     vim.fn.executable = real_executable
+    vim.notify = real_notify
+    versions.PINNED, versions.PINNED_SHA256 = real_pin[1], real_pin[2]
     vim.fn.delete(data, "rf")
   end)
 
@@ -299,7 +311,8 @@ describe("jar", function()
         fake({ [SUMS_URL] = string.rep("0", 64) .. "  socless-lsp-0.17.0.jar\n", [JAR_URL] = CONTENT })
         local res = ensure(config.merge({}))
         eq(nil, res.err)
-        eq(data .. "/socless/socless-lsp-0.17.0.jar.part", seen)
+        -- one .part per Neovim process, so two instances never share one
+        eq(data .. "/socless/socless-lsp-0.17.0.jar." .. vim.fn.getpid() .. ".part", seen)
       end)
       jar._sha256 = real
       assert(ok, err)
@@ -311,20 +324,15 @@ describe("jar", function()
 
     it("calls every waiter when one throws, and reports the error", function()
       fake({ [SUMS_URL] = SUMS, [JAR_URL] = CONTENT })
-      local real_notify = vim.notify
-      local notes = {}
-      vim.notify = function(msg, level) table.insert(notes, { msg = msg, level = level }) end
-      local ok, err = pcall(function()
-        local second
-        jar.ensure(config.merge({}), function() error("waiter boom") end)
-        jar.ensure(config.merge({}), function(path, e) second = { path = path, err = e } end)
-        assert(vim.wait(2000, function() return second ~= nil and #notes > 0 end), "second waiter or notify missing")
-        eq(data .. "/socless/socless-lsp-0.17.0.jar", second.path)
-        eq(vim.log.levels.ERROR, notes[1].level)
-        eq(true, notes[1].msg:find("waiter boom", 1, true) ~= nil, notes[1].msg)
-      end)
-      vim.notify = real_notify
-      assert(ok, err)
+      local function errors()
+        return vim.tbl_filter(function(n) return n.level == vim.log.levels.ERROR end, notes)
+      end
+      local second
+      jar.ensure(config.merge({}), function() error("waiter boom") end)
+      jar.ensure(config.merge({}), function(path, e) second = { path = path, err = e } end)
+      assert(vim.wait(2000, function() return second ~= nil and #errors() > 0 end), "second waiter or notify missing")
+      eq(data .. "/socless/socless-lsp-0.17.0.jar", second.path)
+      eq(true, errors()[1].msg:find("waiter boom", 1, true) ~= nil, errors()[1].msg)
     end)
 
     it("reports a failing mkdir, and the next call retries", function()
@@ -363,21 +371,168 @@ describe("jar", function()
     end)
   end)
 
-  describe("remove", function()
-    it("deletes the pinned jar", function()
-      local cfg = config.merge({})
-      local path = jar.path(cfg)
-      vim.fn.mkdir(vim.fs.dirname(path), "p")
-      vim.fn.writefile({ "x" }, path)
-      jar.remove(cfg)
-      eq(false, exists(path))
+  describe("pinned hash", function()
+    before_each(function()
+      versions.PINNED, versions.PINNED_SHA256 = "0.17.0", sha256(CONTENT)
     end)
 
-    it("never deletes a server_jar", function()
-      local p = data .. "/my.jar"
-      vim.fn.writefile({ "x" }, p)
-      jar.remove(config.merge({ server_jar = p }))
-      eq(true, exists(p))
+    it("checks the pinned version against PINNED_SHA256, without SHA256SUMS", function()
+      local calls = fake({ [JAR_URL] = CONTENT })
+      local res = ensure(config.merge({}))
+      eq(nil, res.err)
+      eq(CONTENT, vim.fn.readblob(res.path))
+      eq({ JAR_URL }, calls)
+    end)
+
+    it("rejects a pinned jar that does not match PINNED_SHA256, even when SHA256SUMS agrees", function()
+      versions.PINNED_SHA256 = string.rep("0", 64)
+      fake({ [SUMS_URL] = sha256(CONTENT) .. "  socless-lsp-0.17.0.jar\n", [JAR_URL] = CONTENT })
+      local res = ensure(config.merge({}))
+      eq(nil, res.path)
+      eq(true, res.err:find("checksum mismatch", 1, true) ~= nil, res.err)
+      eq({}, listing())
+    end)
+
+    it("uses SHA256SUMS for a version the user set", function()
+      local base = "https://github.com/e-ban/SoCless/releases/download/v0.16.0/"
+      local calls = fake({
+        [base .. "SHA256SUMS"] = sha256("old") .. "  socless-lsp-0.16.0.jar\n",
+        [base .. "socless-lsp-0.16.0.jar"] = "old",
+      })
+      local res = ensure(config.merge({ version = "0.16.0" }))
+      eq(nil, res.err)
+      eq({ base .. "SHA256SUMS", base .. "socless-lsp-0.16.0.jar" }, calls)
+    end)
+  end)
+
+  describe("force (:Socless update)", function()
+    local SUMS = sha256(CONTENT) .. "  socless-lsp-0.17.0.jar\n"
+    local function forced(cfg)
+      local res
+      jar.ensure(cfg, function(path, err) res = { path = path, err = err } end, { force = true })
+      assert(vim.wait(2000, function() return res ~= nil end), "ensure never called back")
+      return res
+    end
+    local function old_jar()
+      local path = jar.path(config.merge({}))
+      vim.fn.mkdir(vim.fs.dirname(path), "p")
+      local f = assert(io.open(path, "wb"))
+      f:write("old jar")
+      f:close()
+      return path
+    end
+
+    it("downloads again over an existing jar", function()
+      local path = old_jar()
+      fake({ [SUMS_URL] = SUMS, [JAR_URL] = CONTENT })
+      local res = forced(config.merge({}))
+      eq(nil, res.err)
+      eq(CONTENT, vim.fn.readblob(path))
+      eq({ "socless-lsp-0.17.0.jar" }, listing())
+    end)
+
+    it("keeps the old jar when the download fails", function()
+      local path = old_jar()
+      fake({ [SUMS_URL] = SUMS })
+      local res = forced(config.merge({}))
+      eq(nil, res.path)
+      eq("old jar", vim.fn.readblob(path))
+      eq({ "socless-lsp-0.17.0.jar" }, listing())
+    end)
+
+    it("keeps the old jar when the new one does not verify", function()
+      local path = old_jar()
+      fake({ [SUMS_URL] = string.rep("0", 64) .. "  socless-lsp-0.17.0.jar\n", [JAR_URL] = CONTENT })
+      local res = forced(config.merge({}))
+      eq(nil, res.path)
+      eq("old jar", vim.fn.readblob(path))
+    end)
+  end)
+
+  describe("notices", function()
+    local SUMS = sha256(CONTENT) .. "  socless-lsp-0.17.0.jar\n"
+    local function infos()
+      return vim.tbl_map(function(n) return n.msg end,
+        vim.tbl_filter(function(n) return n.level == vim.log.levels.INFO end, notes))
+    end
+
+    it("says when a download starts and when the server is ready", function()
+      fake({ [SUMS_URL] = SUMS, [JAR_URL] = CONTENT })
+      ensure(config.merge({}))
+      eq({ "SoCLess: downloading server 0.17.0...", "SoCLess: server 0.17.0 ready" }, infos())
+    end)
+
+    it("says nothing for a jar already on disk", function()
+      local path = jar.path(config.merge({}))
+      vim.fn.mkdir(vim.fs.dirname(path), "p")
+      vim.fn.writefile({ "x" }, path)
+      ensure(config.merge({}))
+      eq({}, notes)
+    end)
+
+    it("says once for two concurrent calls", function()
+      fake({ [SUMS_URL] = SUMS, [JAR_URL] = CONTENT })
+      local got = 0
+      jar.ensure(config.merge({}), function() got = got + 1 end)
+      jar.ensure(config.merge({}), function() got = got + 1 end)
+      assert(vim.wait(2000, function() return got == 2 end))
+      eq(2, #infos())
+    end)
+
+    it("names gh in the final message only, when curl failed", function()
+      tools.gh = 1
+      fake({})
+      fake_gh({ SHA256SUMS = SUMS, ["socless-lsp-0.17.0.jar"] = CONTENT })
+      ensure(config.merge({}))
+      local msgs = infos()
+      eq(2, #msgs)
+      eq("SoCLess: downloading server 0.17.0...", msgs[1])
+      eq(true, msgs[2]:find("ready", 1, true) ~= nil and msgs[2]:find("gh", 1, true) ~= nil, msgs[2])
+    end)
+  end)
+
+  describe("curl, gh and the hasher", function()
+    it("gives curl connect and total time limits, https only, TLS 1.2 or later", function()
+      eq({ "curl", "-fsSL", "--connect-timeout", "15", "--max-time", "300", "--proto", "=https", "--tlsv1.2",
+        "-o", "/x/y.part", "https://h/f" }, jar._curl_cmd("https://h/f", "/x/y.part"))
+    end)
+
+    it("runs curl, gh and the hasher with a time limit", function()
+      local seen = {}
+      local real_system = vim.system
+      vim.system = function(cmd, opts) seen[cmd[1]] = opts.timeout; return {} end
+      local ok, err = pcall(function()
+        real_fetch("https://h/f", "/x", function() end)
+        real_fetch_gh("0.17.0", "a", "/x", function() end)
+        jar._sha256("/x", function() end)
+      end)
+      vim.system = real_system
+      assert(ok, err)
+      eq(330000, seen.curl) -- a little over --max-time, so curl's own message wins
+      eq(300000, seen.gh)
+      eq(60000, seen[jar._hash_cmd("/x")[1]])
+    end)
+
+    it("reports a command that timed out", function()
+      local real_cmd, real_ms = jar._hash_cmd, jar._timeout_ms.hash
+      jar._hash_cmd = function() return { "sleep", "5" } end
+      jar._timeout_ms.hash = 100
+      local got
+      jar._sha256("/x", function(hash, e) got = { hash = hash, err = e } end)
+      local ok = vim.wait(3000, function() return got ~= nil end)
+      jar._hash_cmd, jar._timeout_ms.hash = real_cmd, real_ms
+      assert(ok, "no callback")
+      eq(nil, got.hash)
+      eq("sleep timed out after 0.1 s", got.err)
+    end)
+
+    it("hints at gh for a 404 when gh is not installed", function()
+      tools.gh = 0
+      fake({})
+      local res = ensure(config.merge({}))
+      for _, want in ipairs({ "404", "may be private", "install gh", "gh auth login", "server_jar" }) do
+        eq(true, res.err:find(want, 1, true) ~= nil, want .. " in " .. res.err)
+      end
     end)
   end)
 end)

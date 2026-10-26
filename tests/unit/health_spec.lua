@@ -84,6 +84,8 @@ describe("health", function()
     end
     java_says('openjdk version "21.0.12.1" 2026-08-18')
     runs.gh = { code = 0, stdout = "", stderr = "Logged in to github.com account someone" }
+    -- the pinned jar, when a spec puts one on disk, hashes to the pin
+    runs.sha256sum = { code = 0, stdout = require("socless.versions").PINNED_SHA256 .. "  x.jar\n", stderr = "" }
     -- a Mill project as the cwd, with its ./mill launcher
     touch(dir .. "/proj/build.mill")
     touch(dir .. "/proj/mill")
@@ -186,12 +188,48 @@ describe("health", function()
   end)
 
   describe("jar", function()
-    it("a pinned jar on disk is OK, with its version, verified at download", function()
+    local PIN = require("socless.versions").PINNED_SHA256
+    local function hashes_to(hash)
+      runs.sha256sum = { code = 0, stdout = hash .. "  " .. dir .. "/data/socless/socless-lsp-0.17.0.jar\n", stderr = "" }
+    end
+
+    it("re-hashes a pinned jar on disk: OK when it matches PINNED_SHA256", function()
       touch(dir .. "/data/socless/socless-lsp-0.17.0.jar")
+      local asked
+      local stub = health._run
+      health._run = function(cmd)
+        if cmd[1] == "sha256sum" then asked = cmd end
+        return stub(cmd)
+      end
+      hashes_to(PIN)
       health.check()
+      eq({ "sha256sum", dir .. "/data/socless/socless-lsp-0.17.0.jar" }, asked)
       has("ok", "socless-lsp-0.17.0.jar")
       has("ok", "0.17.0")
-      has("ok", "checksum verified")
+      has("ok", "matches the pinned sha256")
+    end)
+
+    it("a pinned jar that does not match PINNED_SHA256 is an ERROR", function()
+      touch(dir .. "/data/socless/socless-lsp-0.17.0.jar")
+      hashes_to(string.rep("0", 64))
+      health.check()
+      has("error", "does not match the pinned sha256")
+      has("error", ":Socless update")
+    end)
+
+    it("a pinned jar that cannot be re-hashed is a WARN", function()
+      touch(dir .. "/data/socless/socless-lsp-0.17.0.jar")
+      tools.sha256sum = 0
+      health.check()
+      has("warn", "socless-lsp-0.17.0.jar")
+    end)
+
+    it("a jar of a version the user set was checked against SHA256SUMS", function()
+      touch(dir .. "/data/socless/socless-lsp-0.16.0.jar")
+      socless.config = config.merge({ version = "0.16.0" })
+      health.check()
+      has("ok", "socless-lsp-0.16.0.jar")
+      has("ok", "SHA256SUMS")
     end)
 
     it("a missing pinned jar is a WARN (downloaded with the first Scala buffer)", function()

@@ -38,6 +38,70 @@ describe(":Socless", function()
   end)
 end)
 
+describe(":Socless log", function()
+  it("opens vim.lsp.log.get_filename() in a tab (not the deprecated get_log_path)", function()
+    local real_get, real_old, opened = vim.lsp.log.get_filename, vim.lsp.get_log_path, nil
+    vim.lsp.log.get_filename = function() return "/x/lsp.log" end
+    vim.lsp.get_log_path = function() error("deprecated get_log_path called") end
+    vim.cmd.tabedit = function(path) opened = path end
+    local ok, err = pcall(commands.run, "log")
+    vim.lsp.log.get_filename, vim.lsp.get_log_path, vim.cmd.tabedit = real_get, real_old, nil
+    assert(ok, err)
+    eq("/x/lsp.log", opened)
+  end)
+end)
+
+describe(":Socless update", function()
+  local jar = require("socless.jar")
+  local client = require("socless.client")
+  local data, real, notes
+
+  before_each(function()
+    data = vim.fn.tempname()
+    notes = {}
+    real = { stdpath = vim.fn.stdpath, fetch = jar._fetch, fetch_gh = jar._fetch_gh, notify = vim.notify,
+      executable = vim.fn.executable, updated = client.updated }
+    vim.fn.stdpath = function(what) return what == "data" and data or real.stdpath(what) end
+    vim.fn.executable = function(name) return name == "gh" and 0 or real.executable(name) end
+    vim.notify = function(msg, level) table.insert(notes, { msg = msg, level = level }) end
+    require("socless").config = require("socless.config").merge({})
+  end)
+
+  after_each(function()
+    vim.fn.stdpath, jar._fetch, jar._fetch_gh, vim.notify = real.stdpath, real.fetch, real.fetch_gh, real.notify
+    vim.fn.executable, client.updated = real.executable, real.updated
+    require("socless").config = nil
+    vim.fn.delete(data, "rf")
+  end)
+
+  it("keeps the old jar when the download fails (the network is down)", function()
+    local path = jar.path(require("socless").config)
+    vim.fn.mkdir(vim.fs.dirname(path), "p")
+    vim.fn.writefile({ "old jar" }, path)
+    jar._fetch = function(_, _, cb) vim.schedule(function() cb("curl: (6) Could not resolve host") end) end
+    local updated = 0
+    client.updated = function() updated = updated + 1 end
+    commands.run("update")
+    assert(vim.wait(2000, function()
+      return #vim.tbl_filter(function(n) return n.level == vim.log.levels.ERROR end, notes) > 0
+    end), "no error")
+    eq({ "old jar" }, vim.fn.readfile(path))
+    eq(0, updated)
+  end)
+
+  it("forces the download, then hands the new jar to the client", function()
+    local real_ensure, opts = jar.ensure, nil
+    jar.ensure = function(_, cb, o) opts = o; cb("/new.jar") end
+    local updated = 0
+    client.updated = function() updated = updated + 1 end
+    local ok, err = pcall(commands.run, "update")
+    jar.ensure = real_ensure
+    assert(ok, err)
+    eq({ force = true }, opts)
+    eq(1, updated)
+  end)
+end)
+
 describe("view and simulate", function()
   local client = require("socless.client")
   local notes, requests, real_notify, real_get
