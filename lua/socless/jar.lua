@@ -4,7 +4,11 @@ local M = {}
 ---The GitHub repository the server releases come from.
 M.REPO = "e-ban/SoCless"
 
-local RELEASES = "https://github.com/" .. M.REPO .. "/releases/download"
+---A sha256 in hex: exactly 64 hex digits (the pattern is followed by a space
+---or the end where it is used).
+local HEX64 = string.rep("%x", 64)
+
+local RELEASES ="https://github.com/" .. M.REPO .. "/releases/download"
 
 ---@param version string
 ---@return string
@@ -110,8 +114,9 @@ function M._sha256(path, cb)
     return vim.schedule(function() cb(nil, "neither sha256sum nor shasum is installed") end)
   end
   run(cmd, function(res)
-    local hash = res.code == 0 and (res.stdout or ""):match("^(%x+)")
+    local hash = res.code == 0 and (res.stdout or ""):match("^(" .. HEX64 .. ")%s")
     if hash then return cb(hash:lower()) end
+    if res.code == 0 then return cb(nil, ("%s printed no sha256: %s"):format(cmd[1], vim.trim(res.stdout or ""))) end
     cb(nil, failure(cmd, res))
   end)
 end
@@ -122,7 +127,7 @@ end
 ---@return string|nil
 local function expected_hash(sums, name)
   for line in vim.gsplit(sums, "\n", { plain = true }) do
-    local hash, file = line:match("^(%x+)%s+%*?(.-)%s*$")
+    local hash, file = line:match("^(" .. HEX64 .. ")%s+%*?(.-)%s*$")
     if hash and vim.fs.basename(file) == name then return hash:lower() end
   end
 end
@@ -153,12 +158,24 @@ local function download(cfg, path)
     os.remove(sums_part)
     local waiters = pending[path]
     pending[path] = nil
+    -- One waiter that throws must not keep the others from their result.
+    local errors = {}
     for _, cb in ipairs(waiters) do
-      if err then cb(nil, err) else cb(path) end
+      local ok, cb_err
+      if err then ok, cb_err = pcall(cb, nil, err) else ok, cb_err = pcall(cb, path) end
+      if not ok then table.insert(errors, tostring(cb_err)) end
+    end
+    if #errors > 0 then
+      vim.schedule(function()
+        vim.notify("SoCLess: error in a jar callback: " .. table.concat(errors, "; "), vim.log.levels.ERROR)
+      end)
     end
   end
 
-  vim.fn.mkdir(vim.fs.dirname(path), "p")
+  local ok, mkdir_err = pcall(vim.fn.mkdir, vim.fs.dirname(path), "p")
+  if not ok then
+    return finish(("SoCLess: could not create %s: %s"):format(vim.fs.dirname(path), mkdir_err))
+  end
   download_asset(cfg.version, "SHA256SUMS", sums_part, function(err)
     if err then return finish(err) end
     local f = io.open(sums_part, "rb")

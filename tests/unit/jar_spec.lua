@@ -306,6 +306,63 @@ describe("jar", function()
     end)
   end)
 
+  describe("robustness", function()
+    local SUMS = sha256(CONTENT) .. "  socless-lsp-0.17.0.jar\n"
+
+    it("calls every waiter when one throws, and reports the error", function()
+      fake({ [SUMS_URL] = SUMS, [JAR_URL] = CONTENT })
+      local real_notify = vim.notify
+      local notes = {}
+      vim.notify = function(msg, level) table.insert(notes, { msg = msg, level = level }) end
+      local ok, err = pcall(function()
+        local second
+        jar.ensure(config.merge({}), function() error("waiter boom") end)
+        jar.ensure(config.merge({}), function(path, e) second = { path = path, err = e } end)
+        assert(vim.wait(2000, function() return second ~= nil and #notes > 0 end), "second waiter or notify missing")
+        eq(data .. "/socless/socless-lsp-0.17.0.jar", second.path)
+        eq(vim.log.levels.ERROR, notes[1].level)
+        eq(true, notes[1].msg:find("waiter boom", 1, true) ~= nil, notes[1].msg)
+      end)
+      vim.notify = real_notify
+      assert(ok, err)
+    end)
+
+    it("reports a failing mkdir, and the next call retries", function()
+      local calls = fake({ [SUMS_URL] = SUMS, [JAR_URL] = CONTENT })
+      local real_mkdir = vim.fn.mkdir
+      vim.fn.mkdir = function() error("Vim:E739: Cannot create directory: read-only") end
+      local ok, res = pcall(ensure, config.merge({}))
+      vim.fn.mkdir = real_mkdir
+      assert(ok, res)
+      eq(nil, res.path)
+      eq(true, res.err:find("E739", 1, true) ~= nil, res.err)
+      eq({}, calls)
+
+      res = ensure(config.merge({}))
+      eq(nil, res.err)
+      eq(CONTENT, vim.fn.readblob(res.path))
+    end)
+
+    it("only accepts a SHA256SUMS hash of 64 hex characters", function()
+      for _, bad in ipairs({ "abc", string.rep("a", 63), string.rep("a", 65) }) do
+        fake({ [SUMS_URL] = bad .. "  socless-lsp-0.17.0.jar\n", [JAR_URL] = CONTENT })
+        local res = ensure(config.merge({}))
+        eq(nil, res.path)
+        eq(true, res.err:find("no checksum", 1, true) ~= nil, res.err)
+      end
+    end)
+
+    it("rejects a hasher output that is not 64 hex characters", function()
+      local real = jar._hash_cmd
+      jar._hash_cmd = function() return { "echo", "abc  file" } end
+      local got
+      jar._sha256("/x", function(hash, err) got = { hash = hash, err = err } end)
+      jar._hash_cmd = real
+      assert(vim.wait(2000, function() return got ~= nil end))
+      eq(nil, got.hash)
+    end)
+  end)
+
   describe("remove", function()
     it("deletes the pinned jar", function()
       local cfg = config.merge({})

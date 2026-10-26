@@ -53,4 +53,11 @@ describe("versions", function()
     eq({}, versions.warnings(config.merge({ version = "0.100.0", settings = { wave_viewer = "surfer" } })))
     eq(1, #versions.warnings(config.merge({ version = "0.9.0", settings = { wave_viewer = "surfer" } })))
   end)
+
+  it("does not warn for wave_viewer on 0.17.1-SNAPSHOT or 1.0.0, warns on 0.16.0", function()
+    local function w(v) return versions.warnings(config.merge({ version = v, settings = { wave_viewer = "surfer" } })) end
+    eq({}, w("0.17.1-SNAPSHOT"))
+    eq({}, w("1.0.0"))
+    eq(1, #w("0.16.0"))
+  end)
 end)
