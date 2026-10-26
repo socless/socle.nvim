@@ -42,12 +42,15 @@ Both repositories (e-ban/SoCless and e-ban/socless.nvim) are private for now:
 - For Simulate only: Verilator on `PATH`, and the
   [Surfer](https://surfer-project.org/) app unless `wave_viewer` is
   `"surfer-panel"`.
+- Linux and macOS. Windows is not tested, and the download needs `sha256sum`
+  or `shasum` there too: without them, set `server_jar`.
 
 ## Install
 
 Every snippet calls `require("socless").setup()`: nothing happens before it.
 The server starts with the first Scala buffer of a Mill project. The first
-start downloads the jar, so it takes a few seconds once.
+start downloads the jar, so it takes a few seconds once ("SoCLess: downloading
+server ...", then "SoCLess: server ... ready").
 
 ### lazy.nvim and LazyVim
 
@@ -57,10 +60,14 @@ start downloads the jar, so it takes a few seconds once.
   -- while the repository is private:
   -- url = "git@github.com:e-ban/socless.nvim.git",
   ft = "scala",
-  opts = {},
+  cmd = "Socless",
+  opts = {
+    -- the options and the settings, flat (see Options), for example:
+    -- wave_viewer = "surfer-panel",
+  },
   keys = {
-    { "<leader>cv", "<cmd>Socless view<cr>", ft = "scala", desc = "SoCLess: view design" },
-    { "<leader>cS", "<cmd>Socless simulate<cr>", ft = "scala", desc = "SoCLess: simulate" },
+    { "<leader>cV", "<cmd>Socless view<cr>", ft = "scala", desc = "SoCLess: view design" },
+    { "<leader>cX", "<cmd>Socless simulate<cr>", ft = "scala", desc = "SoCLess: simulate" },
     { "<leader>cP", "<cmd>Socless panel<cr>", ft = "scala", desc = "SoCLess: open the panel" },
   },
 }
@@ -130,9 +137,11 @@ require("socless").setup({
 })
 ```
 
-`settings` holds the server's Simulate and waveform settings. A setting left
-out is not sent, so the server keeps its own default (shown here). An unknown
-key gets a warning and is not sent.
+The settings below are the server's Simulate and waveform settings. They go
+directly in the options (flat, as in `wave_viewer = "surfer-panel"`), or under
+`settings`; when a key is in both places, the one under `settings` wins. A
+setting left out is not sent, so the server keeps its own default (shown
+here). An unknown option or setting gets a warning and is ignored.
 
 | Setting | Server default | Meaning |
 |---------|----------------|---------|
@@ -155,12 +164,14 @@ Example:
 ```lua
 require("socless").setup({
   open_panel = { "firefox", "--new-window" },
-  settings = { wave_flag = "emitFst", wave_viewer = "surfer-panel" },
+  wave_flag = "emitFst",
+  wave_viewer = "surfer-panel",
 })
 ```
 
-Calling `setup` again with new options registers them, but a running server
-keeps the old ones until `:lsp restart socless`.
+Calling `setup` again with new options applies them by restarting the server
+("SoCLess: restarted with the new options"): the open Scala buffers attach to
+the new one.
 
 ## Commands
 
@@ -171,8 +182,8 @@ keeps the old ones until `:lsp restart socless`.
 | `:Socless view` | Runs the View design lens of the test at or above the cursor (else the first one in the file). |
 | `:Socless simulate` | The same with the Simulate lens. |
 | `:Socless panel` | Opens the last view's panel again. |
-| `:Socless update` | Deletes the downloaded jar, downloads it again, and restarts a running server. |
-| `:Socless log` | Opens the LSP log (`vim.lsp.get_log_path()`), which holds the server's stderr, in a new tab. |
+| `:Socless update` | Downloads the jar again and restarts the server on it (or starts one). The jar on disk is only replaced once the new one verified, so a failed update keeps it. |
+| `:Socless log` | Opens the LSP log (`vim.lsp.log.get_filename()`), which holds the server's stderr, in a new tab. |
 | `:Socless health` | Runs `:checkhealth socless`. |
 
 The lenses also run with Neovim's own `grx` mapping or
@@ -186,8 +197,9 @@ updates the open tab, and `:Socless panel` opens it again.
 - Neovim 0.12 or later, and that `setup()` was called;
 - the java the server runs with, and that it is Java 21 or later (an ERROR
   otherwise);
-- the jar: the pinned one (its version, checked against `SHA256SUMS` when it
-  was downloaded) or `server_jar` (an ERROR when it is missing);
+- the jar: the pinned one, hashed again and compared with `PINNED_SHA256` (an
+  ERROR when it differs), a `version` you set (checked against `SHA256SUMS`
+  when it was downloaded), or `server_jar` (an ERROR when it is missing);
 - the download tools: curl, `sha256sum` or `shasum`, and whether gh is
   installed and logged in (`gh auth status`). These only WARN when the jar
   still has to be downloaded;
@@ -209,21 +221,33 @@ Metals' lenses stay as Metals configures them.
 Each plugin release pins the server release it is tested against
 (`require("socless.versions").PINNED`, now 0.17.0). The jar goes to
 `stdpath("data")/socless/socless-lsp-<version>.jar` and is downloaded once,
-from `https://github.com/e-ban/SoCless/releases/download/v<version>/`, then
-checked against the release's `SHA256SUMS`. A download that fails, or whose
-checksum does not match, leaves nothing behind, and the next Scala buffer
-tries again. Updating the plugin moves the pin, and the new jar is downloaded
-on the next start.
+from `https://github.com/e-ban/SoCless/releases/download/v<version>/`. The
+pin includes the jar's sha256 (`require("socless.versions").PINNED_SHA256`):
+the pinned jar must match it, so a release asset replaced after the plugin
+release is refused. The release's `SHA256SUMS` is only used for a `version`
+you set. A download that fails, or whose checksum does not match, leaves
+nothing behind. It is not retried for each new Scala buffer, only on the next
+`setup` or `:Socless update`. Updating the plugin moves the pin, and the new
+jar is downloaded on the next start.
 
 To override the pin:
 
-- `version = "0.16.0"` downloads and runs that release instead. Settings it
-  does not know get a warning.
+- `version = "0.16.0"` downloads and runs that release instead, checked
+  against its `SHA256SUMS`. Settings it does not know get a warning.
 - `server_jar = "~/socless/out/socless-lsp/assembly.dest/out.jar"` runs a
   local jar, such as one built from SoCLess with `./mill socless-lsp.assembly`.
   Nothing is downloaded, and no version check applies.
 
-`:Socless update` downloads the pinned jar again.
+`:Socless update` downloads the jar again.
+
+To bump the pin (a plugin release):
+
+1. Get the new release's checksums:
+   `gh release download v<new> --repo e-ban/SoCless --pattern SHA256SUMS`.
+2. In `lua/socless/versions.lua`, set `PINNED` to `<new>` and `PINNED_SHA256`
+   to the `socless-lsp-<new>.jar` line's hash.
+3. Update the version this README and `doc/socless.txt` name (the unit
+   specs check them), and run the specs and the integration spec.
 
 ## Development
 

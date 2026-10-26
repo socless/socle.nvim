@@ -36,6 +36,9 @@ local function ide_json(url)
   return ok and json or nil
 end
 
+-- The specs share one Neovim and one server, and run in order: each one
+-- builds on the state the one before left (the client, the buffer), and the
+-- last stops the server. Run the file whole, not one spec on its own.
 local opened = {}
 local buf, c
 

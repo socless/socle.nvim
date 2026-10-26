@@ -96,14 +96,14 @@ jobs:
           echo "SOCLESS_JAR=$RUNNER_TEMP/jar/socless-lsp-$SOCLESS_VERSION.jar" >> "$GITHUB_ENV"
           echo "SOCLESS_ROOT=$GITHUB_WORKSPACE/socless" >> "$GITHUB_ENV"
 
-      # The runner skips tests/integration without SOCLESS_ROOT and SOCLESS_JAR;
-      # here both are set, so a missing spec must fail instead of passing empty.
       # The server bounds each Mill call (10 min): compile the example first,
       # so the spec's view only asks Mill for the classpath, as it does locally.
       - name: Compile the example
         working-directory: socless
         run: ./mill --ticker false example.test.compile
 
+      # The runner skips tests/integration without SOCLESS_ROOT and SOCLESS_JAR;
+      # here both are set, so a missing spec must fail instead of passing empty.
       - name: Run the integration specs
         run: |
           test -f tests/integration/view_spec.lua
