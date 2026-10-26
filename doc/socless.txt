@@ -1,0 +1,111 @@
+*socless.txt*  SoCLess, the Chisel IDE language server, in Neovim
+
+                                                                     *socless*
+socless.nvim runs the SoCLess language server for Chisel projects built with
+Mill. It adds a "View design" and a "Simulate" code lens above every ChiselSim
+test. View design shows the test's design in a live panel in your browser;
+Simulate runs the test with waveforms and shows them in Surfer.
+
+The plugin downloads the pinned server release, checks its sha256 and starts
+it next to Metals. Your tests and build are never modified. The server is
+described in SoCLess's docs/ide-neovim.md:
+https://github.com/e-ban/SoCless/blob/main/docs/ide-neovim.md
+
+Requirements: Neovim 0.12, Java 21 or later, a Mill project (build.mill and
+./mill at its root). To download the jar: curl, and sha256sum or shasum. For
+Simulate: Verilator, and the Surfer app unless wave_viewer is "surfer-panel".
+
+While e-ban/SoCless is private, the anonymous download fails and the plugin
+falls back to `gh release download`: run `gh auth login`, or set
+`server_jar`.
+
+==============================================================================
+SETUP                                                          *socless-setup*
+
+Nothing happens before setup() is called: >lua
+    require("socless").setup({})
+<
+With lazy.nvim: >lua
+    { "e-ban/socless.nvim", ft = "scala", opts = {} }
+<
+The server starts with the first Scala buffer of a Mill project (a build.mill
+above the file). The first start downloads the jar.
+
+==============================================================================
+OPTIONS                                                      *socless-options*
+
+The defaults: >lua
+    require("socless").setup({
+      version = "0.17.0",   -- server release to download
+      server_jar = nil,     -- a local jar: overrides version and download
+      java = nil,           -- nil: $JAVA_HOME/bin/java, else "java"
+      codelens = true,      -- show the lenses
+      follow_cursor = true, -- the panel follows the cursor (CursorHold)
+      open_panel = nil,     -- nil: vim.ui.open(url); a list: a command,
+                            -- the url appended; or a function(url)
+      notify_status = true, -- "design ready" and "simulating" notices
+      settings = {},        -- sent to the server, see below
+    })
+<
+                                                    *socless-settings*
+`settings` keys, sent to the server in camelCase. A key left out is not sent
+(the server default applies). An unknown key is warned about and not sent.
+
+  wave_flag                 ChiselSim wave option, `-D<flag>=1`. "emitVcd"
+  surfer_command            the Surfer app's executable. "surfer"
+  wave_viewer               "surfer", "surfer-panel" or "custom". "surfer"
+  wave_viewer_command       command for "custom"; {file} is the trace
+  waves_follow_selection    the selected module picks the signals. true
+  waves_show_clock_reset    clock and reset lead the list. false
+  waves_fold_bundles        "surfer-panel": bundles start folded. false
+  waves_show_wires          include the Wires group. true
+  waves_color_by_direction  inputs blue, outputs green. true
+  waves_follow_delay_ms     delay before Surfer follows. 150
+
+wave_flag and surfer_command need server 0.16.0, the others 0.17.0: an older
+`version` gets one warning per such setting. A second setup() with new options
+applies after `:lsp restart socless`.
+
+                                                     *socless-version*
+Each plugin release pins the server version it is tested against (0.17.0).
+The jar goes to stdpath("data")/socless/socless-lsp-<version>.jar, downloaded
+once from the GitHub release and checked against its SHA256SUMS. A failed
+download leaves nothing behind; the next Scala buffer retries. Set `version`
+to run another release, or `server_jar` to run a local jar (no download, no
+version check).
+
+==============================================================================
+COMMANDS                                                    *socless-commands*
+                                                                    *:Socless*
+
+:Socless view       Run the View design lens of the test at or above the
+                    cursor (else the first one in the file).
+:Socless simulate   The same with the Simulate lens.
+:Socless panel      Open the last view's panel again.
+:Socless update     Download the pinned jar again and restart the server.
+:Socless log        Open the LSP log, with the server's stderr, in a tab.
+:Socless health     Run `:checkhealth socless`.
+
+The browser opens once per panel URL; `:Socless panel` forces it again. The
+lenses also run with `grx` or |vim.lsp.codelens.run()|.
+
+==============================================================================
+HEALTH                                                        *socless-health*
+
+`:checkhealth socless` checks Neovim 0.12, that setup() was called, the java
+in use (Java 21 or later, else an ERROR), the jar (a missing `server_jar` is
+an ERROR), curl, sha256sum or shasum, whether gh is installed and logged in
+(`gh auth status`), `./mill` or `mill` for the Mill project of the open Scala
+buffers (else of the working directory), verilator, and the Surfer app when
+wave_viewer needs it. The download tools only WARN when the jar still has to
+be downloaded.
+
+==============================================================================
+METALS                                                        *socless-metals*
+
+socless.nvim runs next to Metals or nvim-metals: both clients attach to the
+same buffers. SoCLess offers no diagnostics, completion, hover or definition.
+Code lenses are enabled for the socless client only, so Metals' lenses stay
+as they are.
+
+ vim:tw=78:ts=8:ft=help:norl:

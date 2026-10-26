@@ -4,7 +4,9 @@
 --
 -- Runs every tests/**/*_spec.lua (or those whose path matches the Lua
 -- pattern), with `describe`, `it`, `before_each`, `after_each` and `eq` as
--- globals, and exits non-zero when a spec fails.
+-- globals, and exits non-zero when a spec fails. The specs under
+-- tests/integration/ need SOCLESS_ROOT (a SoCLess checkout) and SOCLESS_JAR
+-- (its server jar): without both they are skipped, which is not a failure.
 
 local root = vim.fs.dirname(vim.fs.dirname(vim.fs.abspath(debug.getinfo(1, "S").source:sub(2))))
 vim.opt.runtimepath:prepend(root)
@@ -12,7 +14,7 @@ package.path = root .. "/tests/?.lua;" .. package.path
 
 local pattern = _G.arg[1]
 local names, hooks = {}, { before = {}, after = {} }
-local passed, failed = 0, {}
+local passed, failed, skipped = 0, {}, 0
 
 ---@param a any
 ---@param b any
@@ -61,7 +63,12 @@ end
 local files = vim.fn.globpath(root .. "/tests", "**/*_spec.lua", false, true)
 table.sort(files)
 for _, file in ipairs(files) do
-  if not pattern or file:find(pattern) then
+  local env_missing = file:find("/integration/", 1, true)
+    and ((vim.env.SOCLESS_ROOT or "") == "" or (vim.env.SOCLESS_JAR or "") == "")
+  if (not pattern or file:find(pattern)) and env_missing then
+    skipped = skipped + 1
+    io.write("SKIP ", file, ": set SOCLESS_ROOT and SOCLESS_JAR to run it\n")
+  elseif not pattern or file:find(pattern) then
     local ok, err = xpcall(dofile, debug.traceback, file)
     if not ok then
       table.insert(failed, file)
@@ -70,5 +77,6 @@ for _, file in ipairs(files) do
   end
 end
 
-io.write(("\n%d passed, %d failed\n"):format(passed, #failed))
+io.write(("\n%d passed, %d failed%s\n"):format(passed, #failed,
+  skipped > 0 and (", %d file(s) skipped"):format(skipped) or ""))
 os.exit(#failed == 0 and 0 or 1)

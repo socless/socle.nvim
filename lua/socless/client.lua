@@ -32,7 +32,7 @@ M._reset()
 
 ---The java to run: `java`, else $JAVA_HOME/bin/java, else "java".
 ---@param c socless.Config
-local function java(c)
+function M.java(c)
   if c.java then return c.java end
   local home = vim.env.JAVA_HOME
   if home and home ~= "" then return home .. "/bin/java" end
@@ -114,7 +114,7 @@ M.handlers = {
 function M.lsp_config(c, jar_path)
   local server = config.to_server(c.settings)
   return {
-    cmd = { java(c), "-Djava.net.preferIPv4Stack=true", "-jar", jar_path },
+    cmd = { M.java(c), "-Djava.net.preferIPv4Stack=true", "-jar", jar_path },
     filetypes = { "scala" },
     root_markers = { "build.mill" },
     -- no build.mill above the file (sbt, a lone file): no client at all
