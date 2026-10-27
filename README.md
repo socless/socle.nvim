@@ -123,11 +123,11 @@ The defaults:
 
 ```lua
 require("socless").setup({
-  version = "0.17.0",   -- the server release to download (the pin, see below)
+  version = "0.18.0",   -- the server release to download (the pin, see below)
   server_jar = nil,     -- a local jar: overrides version and the download
   java = nil,           -- nil: $JAVA_HOME/bin/java, else "java"
   codelens = true,      -- show the View design and Simulate lenses
-  follow_cursor = true, -- the panel focuses the class under the cursor (on CursorHold)
+  follow_cursor = true, -- the panel lights the class under the cursor (on CursorHold)
   open_panel = nil,     -- nil: vim.ui.open(url); a list: a command, the url appended;
                         -- or a function(url)
   notify_status = true, -- "design ready" and "simulating" notifications
@@ -135,7 +135,7 @@ require("socless").setup({
 })
 ```
 
-The settings below are the server's Simulate and waveform settings. They go
+The settings below are the server's Simulate, waveform and schematic settings. They go
 directly in the options (flat, as in `wave_viewer = "surfer-panel"`), or under
 `settings`; when a key is in both places, the one under `settings` wins. A
 setting left out is not sent, so the server keeps its own default (shown
@@ -153,9 +153,24 @@ here). An unknown option or setting gets a warning and is ignored.
 | `waves_show_wires` | `true` | Surfer viewers only: include the Wires group. |
 | `waves_color_by_direction` | `true` | Surfer viewers only: inputs blue, outputs green. |
 | `waves_follow_delay_ms` | `150` | Surfer viewers only: delay before Surfer follows a selection change. |
+| `schematic_colorize_components` | `false` | The panel colours the boxes by kind. |
+| `schematic_colorize_wires` | `false` | The panel colours the wires by bundle type. |
+| `schematic_density` | `"comfortable"` | `"compact"`, `"comfortable"` or `"comfy"` panel chrome. |
+| `schematic_label_size` | `"normal"` | `"normal"`, `"large"` or `"xl"` port labels and box names. |
+| `schematic_auto_optimize` | `true` | Lay every view out with the optimize pass. |
+| `schematic_hint_bar` | `true` | The hint bar under the schematic. |
+| `schematic_show_layers` | `false` | Draw verification layers. |
+| `schematic_hide` | `{}` | Node kinds to leave out: `"op"`, `"reg"`, `"const"`, `"mem"`, `"fsm"`, `"block"`. |
 
-`wave_flag` and `surfer_command` need server 0.16.0 or later, the others
-0.17.0. With an older `version`, `setup` warns once per such setting.
+`wave_flag` and `surfer_command` need server 0.16.0 or later, the other wave
+settings 0.17.0, the `schematic_*` settings 0.18.0. With an older `version`,
+`setup` warns once per such setting.
+
+The `schematic_*` settings are the panel's defaults: it applies them when it
+opens and when one changes, and its settings popover changes the view until
+then. `follow_cursor = false` also stops the panel lighting the class under
+the cursor (its **focus** chip's × stops it until the cursor moves to
+another class).
 
 Example:
 
@@ -217,7 +232,7 @@ Metals' lenses stay as Metals configures them.
 ## The server version
 
 Each plugin release pins the server release it is tested against
-(`require("socless.versions").PINNED`, now 0.17.0). The jar goes to
+(`require("socless.versions").PINNED`, now 0.18.0). The jar goes to
 `stdpath("data")/socless/socless-lsp-<version>.jar` and is downloaded once,
 from `https://github.com/e-ban/SoCless/releases/download/v<version>/`. The
 pin includes the jar's sha256 (`require("socless.versions").PINNED_SHA256`):
@@ -260,11 +275,11 @@ need two variables, and are skipped (not failed) without them:
 
 - `SOCLESS_ROOT`: a SoCLess checkout. View design runs `./mill` there and
   writes its `out/` directory, so use a scratch clone, not one you work in
-  (`git clone --branch v0.17.0 ~/dev/socless /tmp/socless`);
+  (`git clone --branch v0.18.0 ~/dev/socless /tmp/socless`);
 - `SOCLESS_JAR`: its server jar, `socless-lsp-<version>.jar`.
 
 ```sh
-SOCLESS_ROOT=/tmp/socless SOCLESS_JAR=/path/to/socless-lsp-0.17.0.jar \
+SOCLESS_ROOT=/tmp/socless SOCLESS_JAR=/path/to/socless-lsp-0.18.0.jar \
   nvim --headless -u NONE -l tests/run.lua integration
 ```
 

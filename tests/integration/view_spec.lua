@@ -51,6 +51,7 @@ describe("integration", function()
     require("socless").setup({
       server_jar = server_jar,
       open_panel = function(url) table.insert(opened, url) end,
+      schematic_density = "compact", -- reaches the panel through ide.json (0.18.0)
     })
     vim.cmd.edit(vim.fn.fnameescape(gcd_spec))
     buf = vim.api.nvim_get_current_buf()
@@ -70,14 +71,17 @@ describe("integration", function()
     vim.cmd("Socless view")
     wait(VIEW_MS, function() return opened[1] end, "socless/openPanel")
     local url = opened[1]
-    eq(true, url:match("^http://127%.0%.0%.1:%d+/$") ~= nil, url)
+    -- the server's page, opened as an editor's panel
+    local base = url:match("^(http://127%.0%.0%.1:%d+/)%?panel=1$")
+    eq(true, base ~= nil, url)
     local last
     wait(VIEW_MS, function()
-      last = ide_json(url)
+      last = ide_json(base)
       if last and last.status == "error" then error("View design failed: " .. tostring(last.message)) end
       return last and last.status == "ok"
     end, "ide.json status ok")
     eq("gcd.GcdSpec", last.suite)
+    eq("compact", (last.schematicSettings or {}).density)
     -- later status changes of the same view do not open the browser again
     eq({ url }, opened)
   end)

@@ -40,11 +40,11 @@ OPTIONS                                                      *socless-options*
 
 The defaults: >lua
     require("socless").setup({
-      version = "0.17.0",   -- server release to download
+      version = "0.18.0",   -- server release to download
       server_jar = nil,     -- a local jar: overrides version and download
       java = nil,           -- nil: $JAVA_HOME/bin/java, else "java"
       codelens = true,      -- show the lenses
-      follow_cursor = true, -- the panel follows the cursor (CursorHold)
+      follow_cursor = true, -- the panel lights the class under the cursor
       open_panel = nil,     -- nil: vim.ui.open(url); a list: a command,
                             -- the url appended; or a function(url)
       notify_status = true, -- "design ready" and "simulating" notices
@@ -68,14 +68,24 @@ ignored.
   waves_show_wires          include the Wires group. true
   waves_color_by_direction  inputs blue, outputs green. true
   waves_follow_delay_ms     delay before Surfer follows. 150
+  schematic_colorize_components   colour the boxes by kind. false
+  schematic_colorize_wires        colour the wires by bundle. false
+  schematic_density         "compact", "comfortable" or "comfy". "comfortable"
+  schematic_label_size      "normal", "large" or "xl". "normal"
+  schematic_auto_optimize   lay views out with the optimize pass. true
+  schematic_hint_bar        the hint bar under the schematic. true
+  schematic_show_layers     draw verification layers. false
+  schematic_hide            node kinds left out: "op", "reg", "const",
+                            "mem", "fsm", "block". {}
 
-wave_flag and surfer_command need server 0.16.0, the others 0.17.0: an older
+wave_flag and surfer_command need server 0.16.0, the other wave settings
+0.17.0, the schematic_* settings 0.18.0: an older
 `version` gets one warning per such setting. A second setup() with new options
 applies them by restarting the server; the open Scala buffers attach to the
 new one.
 
                                                      *socless-version*
-Each plugin release pins the server version it is tested against (0.17.0),
+Each plugin release pins the server version it is tested against (0.18.0),
 and the sha256 of its jar. The jar goes to
 stdpath("data")/socless/socless-lsp-<version>.jar, downloaded once from the
 GitHub release. The pinned jar must match the pinned sha256; a `version` you

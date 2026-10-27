@@ -2,8 +2,8 @@ local versions = require("socless.versions")
 local config = require("socless.config")
 
 describe("versions", function()
-  it("pins 0.17.0", function()
-    eq("0.17.0", versions.PINNED)
+  it("pins 0.18.0", function()
+    eq("0.18.0", versions.PINNED)
     eq(versions.PINNED, config.defaults.version)
   end)
 
@@ -53,6 +53,24 @@ describe("versions", function()
       },
     }))
     eq(8, #w)
+  end)
+
+  it("gives one warning per schematic_* option before 0.18.0, none from it", function()
+    local s = {
+      schematic_colorize_components = true, schematic_colorize_wires = true, schematic_density = "compact",
+      schematic_label_size = "xl", schematic_auto_optimize = false, schematic_hint_bar = false,
+      schematic_show_layers = true, schematic_hide = { "const" },
+    }
+    local w = versions.warnings(config.merge({ version = "0.17.0", settings = s }))
+    eq(8, #w)
+    eq(true, w[1]:find("0.18.0", 1, true) ~= nil, w[1])
+    eq({}, versions.warnings(config.merge({ version = "0.18.0", settings = s })))
+  end)
+
+  it("sends the schematic settings in the server's camelCase, a list as it is", function()
+    local out, warnings = config.to_server({ schematic_density = "compact", schematic_hide = { "const", "op" } })
+    eq({ schematicDensity = "compact", schematicHide = { "const", "op" } }, out)
+    eq({}, warnings)
   end)
 
   it("compares versions numerically", function()

@@ -2,12 +2,12 @@
 local M = {}
 
 ---The SoCLess server release this plugin is tested against.
-M.PINNED = "0.17.0"
+M.PINNED = "0.18.0"
 
 ---The sha256 of the PINNED release's socless-lsp jar. The pinned jar must
 ---match it; the release's SHA256SUMS is only used for a `version` the user
 ---set. Bump it together with PINNED.
-M.PINNED_SHA256 = "7b8f2aee7d30d5c70a03b3e1fd1be8a48bfb248dec6e4bc6d2bff37d3f59c018"
+M.PINNED_SHA256 = "3dc3d511321abc6c592866115d0456675e38129206bdcadef5a9b28463998b16"
 
 ---The lowest server version that understands each `settings` option.
 ---@type table<string, string>
@@ -22,6 +22,14 @@ M.min = {
   waves_show_wires = "0.17.0",
   waves_color_by_direction = "0.17.0",
   waves_follow_delay_ms = "0.17.0",
+  schematic_colorize_components = "0.18.0",
+  schematic_colorize_wires = "0.18.0",
+  schematic_density = "0.18.0",
+  schematic_label_size = "0.18.0",
+  schematic_auto_optimize = "0.18.0",
+  schematic_hint_bar = "0.18.0",
+  schematic_show_layers = "0.18.0",
+  schematic_hide = "0.18.0",
 }
 
 ---One warning per set option that the server in use is too old for. A

@@ -12,6 +12,14 @@ local M = {}
 ---@field waves_show_wires? boolean
 ---@field waves_color_by_direction? boolean
 ---@field waves_follow_delay_ms? integer
+---@field schematic_colorize_components? boolean
+---@field schematic_colorize_wires? boolean
+---@field schematic_density? "compact"|"comfortable"|"comfy"
+---@field schematic_label_size? "normal"|"large"|"xl"
+---@field schematic_auto_optimize? boolean
+---@field schematic_hint_bar? boolean
+---@field schematic_show_layers? boolean
+---@field schematic_hide? string[] node kinds: "op", "reg", "const", "mem", "fsm", "block"
 
 ---@class socless.Config
 ---@field version string server release to download
@@ -50,6 +58,14 @@ M.server_keys = {
   waves_show_wires = "wavesShowWires",
   waves_color_by_direction = "wavesColorByDirection",
   waves_follow_delay_ms = "wavesFollowDelayMs",
+  schematic_colorize_components = "schematicColorizeComponents",
+  schematic_colorize_wires = "schematicColorizeWires",
+  schematic_density = "schematicDensity",
+  schematic_label_size = "schematicLabelSize",
+  schematic_auto_optimize = "schematicAutoOptimize",
+  schematic_hint_bar = "schematicHintBar",
+  schematic_show_layers = "schematicShowLayers",
+  schematic_hide = "schematicHide",
 }
 
 ---The top-level options (the nil ones are absent from `defaults`).
