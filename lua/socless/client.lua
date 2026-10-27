@@ -89,13 +89,24 @@ function M.open_last()
   M.open(state.last_url, true)
 end
 
+---The server's panel `url` with `panel=1`: the page then knows it is an
+---editor's panel, as when the server opens the browser itself (no first-time
+---tips; the hint bar not remembered, its origin changes with the port).
+---@param url string
+---@return string
+function M.panel_url(url)
+  local base, frag = url:match("^([^#]*)(.*)$")
+  if base:find("[?&]panel=1") then return url end
+  return base .. (base:find("?", 1, true) and "&" or "?") .. "panel=1" .. frag
+end
+
 ---Handlers for the server's notifications, given to the client's config.
 M.handlers = {
   ---`{url, test}`, sent on every view.
   ["socless/openPanel"] = function(_, params)
     if not (params and params.url) then return end
-    state.last_url = params.url
-    M.open(params.url, false)
+    state.last_url = M.panel_url(params.url)
+    M.open(state.last_url, false)
   end,
   ---`{status, suite, test, message}`, status one of idle, running, simulating,
   ---ok, error. Says "design ready" when a test other than the last one shown
