@@ -17,9 +17,8 @@ sha256sum or shasum. For Simulate: Verilator, and the Surfer app unless
 wave_viewer is "surfer-panel". Windows is not tested: without sha256sum or
 shasum, set `server_jar`.
 
-While socless/socle is private, the anonymous download fails and the plugin
-falls back to `gh release download`: run `gh auth login`, or set
-`server_jar`.
+When curl cannot download the jar, the plugin falls back to
+`gh release download` (with a logged-in gh), or set `server_jar`.
 
 ==============================================================================
 SETUP                                                          *socle-setup*

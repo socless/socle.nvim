@@ -88,8 +88,8 @@ function M._gh_cmd(version, asset, dest)
     "--output", dest, "--clobber" }
 end
 
----Downloads a release asset to `dest` with gh, which can read a private
----repository after `gh auth login`, then calls `cb(nil)`, or `cb(err)`.
+---Downloads a release asset to `dest` with gh (after `gh auth login`), the
+---fallback when curl fails, then calls `cb(nil)`, or `cb(err)`.
 ---Replaced in tests. `cb` runs on the main loop.
 ---@param version string
 ---@param asset string
@@ -112,13 +112,13 @@ local function download_asset(version, asset, dest, cb)
     if not err then return cb(nil, false) end
     if vim.fn.executable("gh") ~= 1 then
       local hint = err:find("404", 1, true)
-        and ". The repository may be private: install gh and run `gh auth login`, or set server_jar" or ""
+        and ". Check the version, or install gh and run `gh auth login`, or set server_jar" or ""
       return cb(("Socle: could not download %s: %s%s"):format(u, err, hint))
     end
     M._fetch_gh(version, asset, dest, function(gh_err)
       if not gh_err then return cb(nil, true) end
-      cb(("Socle: could not download %s: curl failed (%s) and gh failed (%s). The repository %s"
-        .. " may be private: run `gh auth login`, or set server_jar"):format(u, err, gh_err, M.REPO))
+      cb(("Socle: could not download %s from %s: curl failed (%s) and gh failed (%s)."
+        .. " Check the network, or run `gh auth login`, or set server_jar"):format(u, M.REPO, err, gh_err))
     end)
   end)
 end
