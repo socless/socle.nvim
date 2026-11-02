@@ -190,11 +190,11 @@ describe("health", function()
   describe("jar", function()
     local PIN = require("socle.versions").PINNED_SHA256
     local function hashes_to(hash)
-      runs.sha256sum = { code = 0, stdout = hash .. "  " .. dir .. "/data/socle/socle-lsp-0.22.0.jar\n", stderr = "" }
+      runs.sha256sum = { code = 0, stdout = hash .. "  " .. dir .. "/data/socle/socle-lsp-0.23.0.jar\n", stderr = "" }
     end
 
     it("re-hashes a pinned jar on disk: OK when it matches PINNED_SHA256", function()
-      touch(dir .. "/data/socle/socle-lsp-0.22.0.jar")
+      touch(dir .. "/data/socle/socle-lsp-0.23.0.jar")
       local asked
       local stub = health._run
       health._run = function(cmd)
@@ -203,14 +203,14 @@ describe("health", function()
       end
       hashes_to(PIN)
       health.check()
-      eq({ "sha256sum", dir .. "/data/socle/socle-lsp-0.22.0.jar" }, asked)
-      has("ok", "socle-lsp-0.22.0.jar")
-      has("ok", "0.22.0")
+      eq({ "sha256sum", dir .. "/data/socle/socle-lsp-0.23.0.jar" }, asked)
+      has("ok", "socle-lsp-0.23.0.jar")
+      has("ok", "0.23.0")
       has("ok", "matches the pinned sha256")
     end)
 
     it("a pinned jar that does not match PINNED_SHA256 is an ERROR", function()
-      touch(dir .. "/data/socle/socle-lsp-0.22.0.jar")
+      touch(dir .. "/data/socle/socle-lsp-0.23.0.jar")
       hashes_to(string.rep("0", 64))
       health.check()
       has("error", "does not match the pinned sha256")
@@ -218,10 +218,10 @@ describe("health", function()
     end)
 
     it("a pinned jar that cannot be re-hashed is a WARN", function()
-      touch(dir .. "/data/socle/socle-lsp-0.22.0.jar")
+      touch(dir .. "/data/socle/socle-lsp-0.23.0.jar")
       tools.sha256sum = 0
       health.check()
-      has("warn", "socle-lsp-0.22.0.jar")
+      has("warn", "socle-lsp-0.23.0.jar")
     end)
 
     it("a jar of a version the user set was checked against SHA256SUMS", function()
@@ -234,7 +234,7 @@ describe("health", function()
 
     it("a missing pinned jar is a WARN (downloaded with the first Scala buffer)", function()
       health.check()
-      has("warn", "socle-lsp-0.22.0.jar")
+      has("warn", "socle-lsp-0.23.0.jar")
       hasnt("error", "jar")
     end)
 
@@ -262,7 +262,7 @@ describe("health", function()
 
     it("reports a missing gh as INFO when the jar is on disk", function()
       tools.gh = 0
-      touch(dir .. "/data/socle/socle-lsp-0.22.0.jar")
+      touch(dir .. "/data/socle/socle-lsp-0.23.0.jar")
       health.check()
       has("info", "gh not found")
       hasnt("warn", "gh")
@@ -285,7 +285,7 @@ describe("health", function()
 
     it("reports a gh that is not logged in as INFO when the jar is on disk", function()
       runs.gh = { code = 1, stdout = "", stderr = "You are not logged into any GitHub hosts." }
-      touch(dir .. "/data/socle/socle-lsp-0.22.0.jar")
+      touch(dir .. "/data/socle/socle-lsp-0.23.0.jar")
       health.check()
       has("info", "gh is not logged in")
       hasnt("warn", "gh")
@@ -324,7 +324,7 @@ describe("health", function()
 
     it("is only INFO with neither checksum tool when the jar is on disk", function()
       tools.sha256sum = 0
-      touch(dir .. "/data/socle/socle-lsp-0.22.0.jar")
+      touch(dir .. "/data/socle/socle-lsp-0.23.0.jar")
       health.check()
       has("info", "neither sha256sum nor shasum")
       hasnt("error", "sha256sum")
@@ -337,7 +337,7 @@ describe("health", function()
       reports = {}
       health.check()
       has("warn", "curl not found")
-      touch(dir .. "/data/socle/socle-lsp-0.22.0.jar")
+      touch(dir .. "/data/socle/socle-lsp-0.23.0.jar")
       reports = {}
       health.check()
       has("info", "curl not found")
