@@ -1,9 +1,9 @@
-local config = require("socless.config")
+local config = require("socle.config")
 
 describe("config.merge", function()
   it("keeps the defaults and sets the given value", function()
     local cfg = config.merge({ settings = { wave_viewer = "surfer-panel" } })
-    eq("0.21.0", cfg.version)
+    eq("0.22.0", cfg.version)
     eq(nil, cfg.server_jar)
     eq(true, cfg.codelens)
     eq(true, cfg.follow_cursor)
@@ -43,7 +43,7 @@ describe("config.merge with flat settings", function()
 
   it("warns once about an unknown top-level option and drops it", function()
     local cfg, warnings = config.merge({ bogus = 1, java = "/opt/java", server_jar = "/s.jar" })
-    eq({ "SoCLess: unknown option 'bogus', ignored" }, warnings)
+    eq({ "Socle: unknown option 'bogus', ignored" }, warnings)
     eq(nil, cfg.bogus)
     eq("/opt/java", cfg.java)
     eq("/s.jar", cfg.server_jar)
@@ -102,8 +102,8 @@ describe("config.to_server", function()
     local out, warnings = config.to_server({ wave_viewer = "surfer", waveViewer = "x", bogus = 1 })
     eq({ waveViewer = "surfer" }, out)
     eq({
-      "SoCLess: unknown setting 'bogus', ignored",
-      "SoCLess: unknown setting 'waveViewer', ignored",
+      "Socle: unknown setting 'bogus', ignored",
+      "Socle: unknown setting 'waveViewer', ignored",
     }, warnings)
   end)
 end)

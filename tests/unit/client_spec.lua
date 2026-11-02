@@ -1,5 +1,5 @@
-local client = require("socless.client")
-local jar = require("socless.jar")
+local client = require("socle.client")
+local jar = require("socle.jar")
 
 local real = {}
 local notes, configs, enabled, disabled, lens_enables
@@ -8,7 +8,7 @@ local missing
 ---The scratch dirs of `scala_buffer`, deleted after each spec.
 local dirs = {}
 
----A table like `vim.lsp.config`: `vim.lsp.config.socless = tbl` (and the
+---A table like `vim.lsp.config`: `vim.lsp.config.socle = tbl` (and the
 ---call form) are recorded in `configs`.
 local function config_recorder()
   local function record(_, name, cfg) table.insert(configs, { name = name, cfg = cfg }) end
@@ -47,7 +47,7 @@ describe("client", function()
       table.insert(enable == false and disabled or enabled, name)
     end
     vim.lsp.codelens.enable = function(on, filter) table.insert(lens_enables, { on = on, filter = filter }) end
-    jar.ensure = function(_, cb) cb("/tmp/socless-lsp-0.17.0.jar") end
+    jar.ensure = function(_, cb) cb("/tmp/socle-lsp-0.17.0.jar") end
     client._reset()
   end)
 
@@ -58,57 +58,57 @@ describe("client", function()
     jar.ensure, client._can_attach = real.ensure, real.can_attach
     vim.fn.executable = real.executable
     vim.lsp.get_clients = real.get_clients
-    pcall(vim.api.nvim_del_augroup_by_name, "socless")
-    pcall(vim.api.nvim_del_augroup_by_name, "socless.start")
+    pcall(vim.api.nvim_del_augroup_by_name, "socle")
+    pcall(vim.api.nvim_del_augroup_by_name, "socle.start")
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
       if vim.api.nvim_buf_get_name(buf):match("%.scala$") then vim.api.nvim_buf_delete(buf, { force = true }) end
     end
     for _, dir in ipairs(dirs) do vim.fn.delete(dir, "rf") end
     dirs = {}
     client._reset()
-    require("socless").config = nil
+    require("socle").config = nil
   end)
 
   describe("setup", function()
     it("on Neovim older than 0.12 notifies once and does nothing", function()
       vim.fn.has = function(f) return f == "nvim-0.12" and 0 or real.has(f) end
-      require("socless").config = nil
-      require("socless").setup({})
+      require("socle").config = nil
+      require("socle").setup({})
       eq(1, #notes)
       eq(vim.log.levels.ERROR, notes[1].level)
       eq(true, notes[1].msg:find("0.12", 1, true) ~= nil)
-      eq(nil, require("socless").config)
+      eq(nil, require("socle").config)
       eq(0, #vim.api.nvim_get_autocmds({ event = "FileType", pattern = "scala" }))
     end)
 
     it("notifies the unknown-setting and version warnings once each, at WARN", function()
-      require("socless").setup({ version = "0.16.0", settings = { wave_viewer = "surfer", bogus = 1 } })
+      require("socle").setup({ version = "0.16.0", settings = { wave_viewer = "surfer", bogus = 1 } })
       local warns = vim.tbl_filter(function(n) return n.level == vim.log.levels.WARN end, notes)
       eq(2, #warns)
       eq(true, warns[1].msg:find("bogus", 1, true) ~= nil or warns[2].msg:find("bogus", 1, true) ~= nil)
       eq(true, warns[1].msg:find("wave_viewer", 1, true) ~= nil or warns[2].msg:find("wave_viewer", 1, true) ~= nil)
     end)
 
-    it("registers the socless config once a Mill project's Scala buffer opens", function()
-      require("socless").setup({ java = "/opt/java", settings = { wave_viewer = "surfer-panel", waves_show_wires = false } })
+    it("registers the socle config once a Mill project's Scala buffer opens", function()
+      require("socle").setup({ java = "/opt/java", settings = { wave_viewer = "surfer-panel", waves_show_wires = false } })
       eq(0, #configs) -- nothing before a scala buffer
       local buf = scala_buffer(true)
       vim.bo[buf].filetype = "scala"
       eq(1, #configs)
       local c = configs[1]
-      eq("socless", c.name)
-      eq({ "/opt/java", "-Djava.net.preferIPv4Stack=true", "-jar", "/tmp/socless-lsp-0.17.0.jar" }, c.cfg.cmd)
+      eq("socle", c.name)
+      eq({ "/opt/java", "-Djava.net.preferIPv4Stack=true", "-jar", "/tmp/socle-lsp-0.17.0.jar" }, c.cfg.cmd)
       eq({ "scala" }, c.cfg.filetypes)
       eq({ "build.mill" }, c.cfg.root_markers)
       eq(true, c.cfg.workspace_required)
       eq({ panel = "client", waveViewer = "surfer-panel", wavesShowWires = false }, c.cfg.init_options)
-      eq({ socless = { waveViewer = "surfer-panel", wavesShowWires = false } }, c.cfg.settings)
+      eq({ socle = { waveViewer = "surfer-panel", wavesShowWires = false } }, c.cfg.settings)
       eq(client.handlers, c.cfg.handlers)
-      eq({ "socless" }, enabled)
+      eq({ "socle" }, enabled)
     end)
 
     it("configures and enables once for two Scala buffers", function()
-      require("socless").setup({})
+      require("socle").setup({})
       vim.bo[scala_buffer(true)].filetype = "scala"
       vim.bo[scala_buffer(true)].filetype = "scala"
       eq(1, #configs)
@@ -118,7 +118,7 @@ describe("client", function()
     it("starts for a Scala buffer already open before setup", function()
       local buf = scala_buffer(true)
       vim.bo[buf].filetype = "scala"
-      require("socless").setup({})
+      require("socle").setup({})
       eq(1, #configs)
     end)
 
@@ -126,65 +126,65 @@ describe("client", function()
       client._can_attach = function() return false end
       local buf = scala_buffer(true)
       vim.bo[buf].filetype = "scala"
-      require("socless").setup({})
+      require("socle").setup({})
       eq(0, #enabled)
       vim.api.nvim_exec_autocmds("VimEnter", {})
       eq(1, #configs)
-      eq({ "socless" }, enabled)
+      eq({ "socle" }, enabled)
     end)
 
     it("a second setup before VimEnter keeps the pending start, with the new options", function()
       client._can_attach = function() return false end
       vim.bo[scala_buffer(true)].filetype = "scala"
-      require("socless").setup({ java = "/one" })
-      require("socless").setup({ java = "/two" })
+      require("socle").setup({ java = "/one" })
+      require("socle").setup({ java = "/two" })
       vim.api.nvim_exec_autocmds("VimEnter", {})
       eq(1, #configs)
       eq("/two", configs[1].cfg.cmd[1])
-      eq({ "socless" }, enabled)
+      eq({ "socle" }, enabled)
     end)
 
     it("a second setup after the start restarts the server with the new options", function()
       vim.bo[scala_buffer(true)].filetype = "scala"
-      require("socless").setup({ java = "/one" })
+      require("socle").setup({ java = "/one" })
       eq(1, #configs)
-      require("socless").setup({ java = "/two" })
+      require("socle").setup({ java = "/two" })
       eq(2, #configs)
       eq("/two", configs[2].cfg.cmd[1])
       -- disabled (which stops the running clients), then enabled again
-      eq({ "socless" }, disabled)
-      eq({ "socless", "socless" }, enabled)
-      eq("SoCLess: restarted with the new options", notes[#notes].msg)
+      eq({ "socle" }, disabled)
+      eq({ "socle", "socle" }, enabled)
+      eq("Socle: restarted with the new options", notes[#notes].msg)
       eq(vim.log.levels.INFO, notes[#notes].level)
     end)
 
     it("a restart first stops a server that is still starting (not yet initialized)", function()
       vim.bo[scala_buffer(true)].filetype = "scala"
-      require("socless").setup({ java = "/one" })
+      require("socle").setup({ java = "/one" })
       local asked, stopped = nil, {}
       vim.lsp.get_clients = function(filter)
         asked = filter
         return { { id = 5, stop = function(self) table.insert(stopped, { self.id, #disabled }) end } }
       end
-      require("socless").setup({ java = "/two" })
-      eq("socless", asked.name)
+      require("socle").setup({ java = "/two" })
+      eq("socle", asked.name)
       eq(true, asked._uninitialized)
       eq({ { 5, 0 } }, stopped) -- stopped before the disable
-      eq({ "socless" }, disabled)
+      eq({ "socle" }, disabled)
     end)
 
     it("lists a starting client only with _uninitialized (the runtime behaviour the restart relies on)", function()
       local dir = vim.fn.tempname()
       table.insert(dirs, dir)
       vim.fn.mkdir(dir, "p")
-      local id = assert(vim.lsp.start({ name = "socless-probe", cmd = { "sleep", "30" }, root_dir = dir },
+      local id = assert(vim.lsp.start({ name = "socle-probe", cmd = { "sleep", "30" }, root_dir = dir },
         { attach = false }))
       local function listed(filter)
         return #vim.tbl_filter(function(c) return c.id == id end, vim.lsp.get_clients(filter))
       end
       local ok, err = pcall(function()
-        eq(0, listed({ name = "socless-probe" }))
-        eq(1, listed({ name = "socless-probe", _uninitialized = true }))
+        eq(0, listed({ name = "socle-probe" }))
+        eq(1, listed({ name = "socle-probe", _uninitialized = true }))
       end)
       vim.lsp.get_client_by_id(id):stop(true)
       vim.wait(1000, function() return vim.lsp.get_client_by_id(id) == nil end, 20)
@@ -194,8 +194,8 @@ describe("client", function()
     it("a second setup re-resolves the jar (a new server_jar is used)", function()
       jar.ensure = function(c, cb) cb(c.server_jar) end
       vim.bo[scala_buffer(true)].filetype = "scala"
-      require("socless").setup({ server_jar = "/a.jar" })
-      require("socless").setup({ server_jar = "/b.jar" })
+      require("socle").setup({ server_jar = "/a.jar" })
+      require("socle").setup({ server_jar = "/b.jar" })
       eq("/a.jar", configs[1].cfg.cmd[4])
       eq("/b.jar", configs[2].cfg.cmd[4])
     end)
@@ -203,8 +203,8 @@ describe("client", function()
     it("a second setup during the first download starts with the new options' jar", function()
       jar.ensure = function(c, cb) vim.defer_fn(function() cb(c.server_jar) end, 20) end
       vim.bo[scala_buffer(true)].filetype = "scala"
-      require("socless").setup({ server_jar = "/a.jar" })
-      require("socless").setup({ server_jar = "/b.jar" })
+      require("socle").setup({ server_jar = "/a.jar" })
+      require("socle").setup({ server_jar = "/b.jar" })
       assert(vim.wait(1000, function() return #enabled > 0 end), "never enabled")
       vim.wait(100)
       eq("/b.jar", configs[#configs].cfg.cmd[4])
@@ -214,10 +214,10 @@ describe("client", function()
     it("a second setup during a restart's download restarts with the newest options' jar", function()
       jar.ensure = function(c, cb) cb(c.server_jar) end
       vim.bo[scala_buffer(true)].filetype = "scala"
-      require("socless").setup({ server_jar = "/a.jar" })
+      require("socle").setup({ server_jar = "/a.jar" })
       jar.ensure = function(c, cb) vim.defer_fn(function() cb(c.server_jar) end, 20) end
-      require("socless").setup({ server_jar = "/b.jar" })
-      require("socless").setup({ server_jar = "/c.jar" })
+      require("socle").setup({ server_jar = "/b.jar" })
+      require("socle").setup({ server_jar = "/c.jar" })
       assert(vim.wait(1000, function() return #disabled > 0 end), "never restarted")
       vim.wait(100)
       eq("/c.jar", configs[#configs].cfg.cmd[4])
@@ -227,23 +227,23 @@ describe("client", function()
       vim.lsp.config = real.config
       local ok, err = pcall(function()
         vim.bo[scala_buffer(true)].filetype = "scala"
-        require("socless").setup({ java = "/one", settings = { wave_viewer = "surfer-panel" } })
-        eq("surfer-panel", vim.lsp.config.socless.settings.socless.waveViewer)
-        require("socless").setup({ java = "/two", settings = { waves_show_wires = false } })
-        local registered = vim.lsp.config.socless
-        eq({ socless = { wavesShowWires = false } }, registered.settings)
+        require("socle").setup({ java = "/one", settings = { wave_viewer = "surfer-panel" } })
+        eq("surfer-panel", vim.lsp.config.socle.settings.socle.waveViewer)
+        require("socle").setup({ java = "/two", settings = { waves_show_wires = false } })
+        local registered = vim.lsp.config.socle
+        eq({ socle = { wavesShowWires = false } }, registered.settings)
         eq(nil, registered.init_options.waveViewer)
         eq("/two", registered.cmd[1])
       end)
-      vim.lsp.config._configs.socless = nil
+      vim.lsp.config._configs.socle = nil
       assert(ok, err)
     end)
 
     it("a second setup with a java that is missing keeps the running server", function()
       vim.bo[scala_buffer(true)].filetype = "scala"
-      require("socless").setup({ java = "/one" })
+      require("socle").setup({ java = "/one" })
       missing["/two"] = true
-      require("socless").setup({ java = "/two" })
+      require("socle").setup({ java = "/two" })
       eq(1, #configs)
       eq({}, disabled)
       eq(vim.log.levels.ERROR, notes[#notes].level)
@@ -253,7 +253,7 @@ describe("client", function()
     it("a restart outside a FileType event attaches the open Scala buffers itself", function()
       local buf = scala_buffer(true)
       vim.bo[buf].filetype = "scala"
-      require("socless").setup({ java = "/one" })
+      require("socle").setup({ java = "/one" })
       -- stands in for the group vim.lsp.enable creates
       local fired = {}
       vim.api.nvim_create_autocmd("FileType", {
@@ -262,7 +262,7 @@ describe("client", function()
       })
       client._can_attach = function() return false end
       local ok, err = pcall(function()
-        require("socless").setup({ java = "/two" })
+        require("socle").setup({ java = "/two" })
         eq({ buf }, fired)
       end)
       vim.api.nvim_del_augroup_by_name("nvim.lsp.enable")
@@ -271,8 +271,8 @@ describe("client", function()
 
     it("the same setup twice warns once and does not reconfigure", function()
       vim.bo[scala_buffer(true)].filetype = "scala"
-      require("socless").setup({ settings = { bogus = 1 } })
-      require("socless").setup({ settings = { bogus = 1 } })
+      require("socle").setup({ settings = { bogus = 1 } })
+      require("socle").setup({ settings = { bogus = 1 } })
       eq(1, #notes)
       eq(1, #configs)
     end)
@@ -283,20 +283,20 @@ describe("client", function()
         calls = calls + 1
         vim.defer_fn(function() cb("/tmp/j.jar") end, 20)
       end
-      require("socless").setup({})
+      require("socle").setup({})
       vim.bo[scala_buffer(true)].filetype = "scala"
       vim.bo[scala_buffer(true)].filetype = "scala"
       eq(0, #configs)
       assert(vim.wait(1000, function() return #enabled > 0 end), "never enabled")
       eq(1, calls)
       eq(1, #configs)
-      eq({ "socless" }, enabled)
+      eq({ "socle" }, enabled)
     end)
 
     it("does nothing for a Scala file outside a Mill project (no fetch, no config)", function()
       local fetched = 0
       jar.ensure = function(_, cb) fetched = fetched + 1; cb("/tmp/x.jar") end
-      require("socless").setup({})
+      require("socle").setup({})
       vim.bo[scala_buffer(false)].filetype = "scala"
       eq(0, fetched)
       eq(0, #configs)
@@ -305,18 +305,18 @@ describe("client", function()
 
     it("reports a jar error once, does not retry on the next Scala buffer, retries on setup", function()
       local calls = 0
-      jar.ensure = function(_, cb) calls = calls + 1; cb(nil, "SoCLess: could not download URL") end
-      require("socless").setup({})
+      jar.ensure = function(_, cb) calls = calls + 1; cb(nil, "Socle: could not download URL") end
+      require("socle").setup({})
       vim.bo[scala_buffer(true)].filetype = "scala"
       eq(0, #configs)
       eq(1, #notes)
-      eq("SoCLess: could not download URL. Run :Socless update to try again", notes[1].msg)
+      eq("Socle: could not download URL. Run :Socle update to try again", notes[1].msg)
       eq(vim.log.levels.ERROR, notes[1].level)
       vim.bo[scala_buffer(true)].filetype = "scala"
       eq(1, calls)
       eq(1, #notes)
       jar.ensure = function(_, cb) cb("/tmp/j.jar") end
-      require("socless").setup({})
+      require("socle").setup({})
       eq(1, #configs)
     end)
 
@@ -324,13 +324,13 @@ describe("client", function()
       local fetched = 0
       jar.ensure = function(_, cb) fetched = fetched + 1; cb("/tmp/j.jar") end
       missing["/nojava"] = true
-      require("socless").setup({ java = "/nojava" })
+      require("socle").setup({ java = "/nojava" })
       vim.bo[scala_buffer(true)].filetype = "scala"
       eq(0, fetched)
       eq(0, #configs)
       eq(1, #notes)
       eq(vim.log.levels.ERROR, notes[1].level)
-      eq("SoCLess: java not found (/nojava): set `java` or $JAVA_HOME, see :checkhealth socless", notes[1].msg)
+      eq("Socle: java not found (/nojava): set `java` or $JAVA_HOME, see :checkhealth socle", notes[1].msg)
       -- no phase was taken: once java is there, the next Scala buffer starts
       missing["/nojava"] = nil
       vim.bo[scala_buffer(true)].filetype = "scala"
@@ -349,14 +349,14 @@ describe("client", function()
     end)
 
     it("notifies an unknown top-level option at WARN", function()
-      require("socless").setup({ bogus = 1 })
-      eq({ { msg = "SoCLess: unknown option 'bogus', ignored", level = vim.log.levels.WARN } }, notes)
+      require("socle").setup({ bogus = 1 })
+      eq({ { msg = "Socle: unknown option 'bogus', ignored", level = vim.log.levels.WARN } }, notes)
     end)
 
     it("sends a setting given flat at the top level of the options", function()
-      require("socless").setup({ wave_viewer = "surfer-panel" })
+      require("socle").setup({ wave_viewer = "surfer-panel" })
       vim.bo[scala_buffer(true)].filetype = "scala"
-      eq({ socless = { waveViewer = "surfer-panel" } }, configs[1].cfg.settings)
+      eq({ socle = { waveViewer = "surfer-panel" } }, configs[1].cfg.settings)
     end)
 
     it("uses $JAVA_HOME/bin/java, else java", function()
@@ -373,11 +373,11 @@ describe("client", function()
     local opened
     before_each(function()
       opened = {}
-      require("socless").setup({ open_panel = function(url) table.insert(opened, url) end })
+      require("socle").setup({ open_panel = function(url) table.insert(opened, url) end })
     end)
 
     local function open_panel(url)
-      client.handlers["socless/openPanel"](nil, { url = url, test = "t" }, { method = "socless/openPanel" })
+      client.handlers["socle/openPanel"](nil, { url = url, test = "t" }, { method = "socle/openPanel" })
     end
 
     it("opens once for the same URL, again for a new one, as an editor's panel", function()
@@ -388,9 +388,9 @@ describe("client", function()
       eq({ "http://127.0.0.1:1/?panel=1", "http://127.0.0.1:2/?panel=1" }, opened)
     end)
 
-    it(":Socless panel forces the last URL open again", function()
+    it(":Socle panel forces the last URL open again", function()
       open_panel("http://127.0.0.1:1/")
-      require("socless.commands").run("panel")
+      require("socle.commands").run("panel")
       eq({ "http://127.0.0.1:1/?panel=1", "http://127.0.0.1:1/?panel=1" }, opened)
     end)
 
@@ -401,10 +401,10 @@ describe("client", function()
       eq("http://h:1/?panel=1", client.panel_url("http://h:1/?panel=1"))
     end)
 
-    it(":Socless panel with no view yet says so", function()
-      require("socless.commands").run("panel")
+    it(":Socle panel with no view yet says so", function()
+      require("socle.commands").run("panel")
       eq({}, opened)
-      eq("SoCLess: no view yet", notes[#notes].msg)
+      eq("Socle: no view yet", notes[#notes].msg)
     end)
 
     it("runs a command list with the URL appended", function()
@@ -421,7 +421,7 @@ describe("client", function()
       local real_open = vim.ui.open
       local tries = 0
       vim.ui.open = function() tries = tries + 1; return nil, "vim.ui.open: no handler found" end
-      require("socless").setup({})
+      require("socle").setup({})
       local ok, err = pcall(function()
         open_panel("http://127.0.0.1:1/")
         open_panel("http://127.0.0.1:1/")
@@ -437,11 +437,11 @@ describe("client", function()
 
   describe("status", function()
     local function status(s, msg, test)
-      client.handlers["socless/status"](nil, { status = s, suite = "S", test = test or "t", message = msg or "" }, {})
+      client.handlers["socle/status"](nil, { status = s, suite = "S", test = test or "t", message = msg or "" }, {})
     end
 
     it("says design ready once per test: a rerun of the same test (a save) is silent", function()
-      require("socless").setup({})
+      require("socle").setup({})
       status("running")
       eq(0, #notes)
       status("ok")
@@ -457,7 +457,7 @@ describe("client", function()
     end)
 
     it("notifies design ready for a new test", function()
-      require("socless").setup({})
+      require("socle").setup({})
       status("ok", "", "a")
       status("running", "", "b")
       status("ok", "", "b")
@@ -466,14 +466,14 @@ describe("client", function()
     end)
 
     it("never notifies an error (the server shows it)", function()
-      require("socless").setup({})
+      require("socle").setup({})
       status("running")
       status("error", "boom")
       eq(0, #notes)
     end)
 
     it("never notifies an ok with a message (a simulation's end, the server shows it)", function()
-      require("socless").setup({})
+      require("socle").setup({})
       status("simulating")
       status("ok", "Simulation failed: x")
       eq(1, #notes) -- the simulating one only
@@ -481,7 +481,7 @@ describe("client", function()
     end)
 
     it("stays silent for an ok after an error of the same test already shown ready", function()
-      require("socless").setup({})
+      require("socle").setup({})
       status("ok")
       status("error", "boom")
       status("running")
@@ -490,7 +490,7 @@ describe("client", function()
     end)
 
     it("notifies simulating once per start", function()
-      require("socless").setup({})
+      require("socle").setup({})
       status("simulating")
       status("simulating")
       eq(1, #notes)
@@ -500,7 +500,7 @@ describe("client", function()
     end)
 
     it("stays quiet with notify_status off", function()
-      require("socless").setup({ notify_status = false })
+      require("socle").setup({ notify_status = false })
       status("ok")
       status("error", "boom")
       eq(0, #notes)
@@ -518,37 +518,37 @@ describe("client", function()
     end)
   end)
 
-  describe("updated (a new jar from :Socless update)", function()
+  describe("updated (a new jar from :Socle update)", function()
     it("restarts a started client", function()
       vim.bo[scala_buffer(true)].filetype = "scala"
-      require("socless").setup({})
+      require("socle").setup({})
       client.updated()
-      eq({ "socless" }, disabled)
-      eq({ "socless", "socless" }, enabled)
+      eq({ "socle" }, disabled)
+      eq({ "socle", "socle" }, enabled)
     end)
 
     it("starts for the current Scala buffer when no client started", function()
       local calls = 0
       jar.ensure = function(_, cb)
         calls = calls + 1
-        if calls == 1 then return cb(nil, "SoCLess: offline") end
+        if calls == 1 then return cb(nil, "Socle: offline") end
         cb("/tmp/j.jar")
       end
-      require("socless").setup({})
+      require("socle").setup({})
       local buf = scala_buffer(true)
       vim.bo[buf].filetype = "scala"
       eq(0, #configs)
       vim.api.nvim_set_current_buf(buf)
       client.updated()
       eq(1, #configs)
-      eq({ "socless" }, enabled)
+      eq({ "socle" }, enabled)
     end)
   end)
 
   describe("codelens", function()
-    it("enables lenses for the attaching socless client only", function()
-      require("socless").setup({})
-      vim.lsp.get_client_by_id = function(id) return { id = id, name = id == 7 and "socless" or "metals" } end
+    it("enables lenses for the attaching socle client only", function()
+      require("socle").setup({})
+      vim.lsp.get_client_by_id = function(id) return { id = id, name = id == 7 and "socle" or "metals" } end
       client._on_attach({ buf = 3, data = { client_id = 9 } })
       eq({}, lens_enables)
       client._on_attach({ buf = 3, data = { client_id = 7 } })
@@ -556,8 +556,8 @@ describe("client", function()
     end)
 
     it("does not enable lenses with codelens = false", function()
-      require("socless").setup({ codelens = false })
-      vim.lsp.get_client_by_id = function(id) return { id = id, name = "socless" } end
+      require("socle").setup({ codelens = false })
+      vim.lsp.get_client_by_id = function(id) return { id = id, name = "socle" } end
       client._on_attach({ buf = 3, data = { client_id = 7 } })
       eq({}, lens_enables)
     end)
@@ -575,14 +575,14 @@ describe("client", function()
     end)
     after_each(function() client._get = nil end)
 
-    it("sends socless/cursor with a 0-based line", function()
-      require("socless").setup({})
+    it("sends socle/cursor with a 0-based line", function()
+      require("socle").setup({})
       client._send_cursor(buf)
-      eq({ { "socless/cursor", { uri = vim.uri_from_bufnr(buf), line = 2 } } }, sent)
+      eq({ { "socle/cursor", { uri = vim.uri_from_bufnr(buf), line = 2 } } }, sent)
     end)
 
     it("sends again only when the line or the buffer changed", function()
-      require("socless").setup({})
+      require("socle").setup({})
       client._send_cursor(buf)
       client._send_cursor(buf)
       eq(1, #sent)
@@ -598,9 +598,9 @@ describe("client", function()
       eq(3, #sent)
     end)
 
-    it("sends the same line again after a new socless client attached", function()
-      require("socless").setup({ codelens = false })
-      vim.lsp.get_client_by_id = function(id) return { id = id, name = "socless" } end
+    it("sends the same line again after a new socle client attached", function()
+      require("socle").setup({ codelens = false })
+      vim.lsp.get_client_by_id = function(id) return { id = id, name = "socle" } end
       client._send_cursor(buf)
       client._on_attach({ buf = buf, data = { client_id = 8 } })
       client._send_cursor(buf)
@@ -608,7 +608,7 @@ describe("client", function()
     end)
 
     it("sends nothing with follow_cursor = false", function()
-      require("socless").setup({ follow_cursor = false })
+      require("socle").setup({ follow_cursor = false })
       client._send_cursor(buf)
       eq({}, sent)
     end)

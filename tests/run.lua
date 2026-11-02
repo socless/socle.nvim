@@ -5,7 +5,7 @@
 -- Runs every tests/**/*_spec.lua (or those whose path matches the Lua
 -- pattern), with `describe`, `it`, `before_each`, `after_each` and `eq` as
 -- globals, and exits non-zero when a spec fails. The specs under
--- tests/integration/ need SOCLESS_ROOT (a SoCLess checkout) and SOCLESS_JAR
+-- tests/integration/ need SOCLE_ROOT (a Socle checkout) and SOCLE_JAR
 -- (its server jar): without both they are skipped, which is not a failure.
 
 local root = vim.fs.dirname(vim.fs.dirname(vim.fs.abspath(debug.getinfo(1, "S").source:sub(2))))
@@ -64,10 +64,10 @@ local files = vim.fn.globpath(root .. "/tests", "**/*_spec.lua", false, true)
 table.sort(files)
 for _, file in ipairs(files) do
   local env_missing = file:find("/integration/", 1, true)
-    and ((vim.env.SOCLESS_ROOT or "") == "" or (vim.env.SOCLESS_JAR or "") == "")
+    and ((vim.env.SOCLE_ROOT or "") == "" or (vim.env.SOCLE_JAR or "") == "")
   if (not pattern or file:find(pattern)) and env_missing then
     skipped = skipped + 1
-    io.write("SKIP ", file, ": set SOCLESS_ROOT and SOCLESS_JAR to run it\n")
+    io.write("SKIP ", file, ": set SOCLE_ROOT and SOCLE_JAR to run it\n")
   elseif not pattern or file:find(pattern) then
     local ok, err = xpcall(dofile, debug.traceback, file)
     if not ok then

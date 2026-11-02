@@ -1,9 +1,9 @@
-local versions = require("socless.versions")
-local config = require("socless.config")
+local versions = require("socle.versions")
+local config = require("socle.config")
 
 describe("versions", function()
-  it("pins 0.21.0", function()
-    eq("0.21.0", versions.PINNED)
+  it("pins 0.22.0", function()
+    eq("0.22.0", versions.PINNED)
     eq(versions.PINNED, config.defaults.version)
   end)
 
@@ -27,7 +27,7 @@ describe("versions", function()
   it("does not warn with a server_jar (version unknown)", function()
     eq({}, versions.warnings(config.merge({
       version = "0.16.0",
-      server_jar = "/tmp/socless-lsp.jar",
+      server_jar = "/tmp/socle-lsp.jar",
       settings = { wave_viewer = "surfer-panel" },
     })))
   end)
@@ -86,7 +86,7 @@ describe("versions", function()
   end)
 
   -- the docs name the pin; a bump that forgets them fails here
-  it("is the version README.md and doc/socless.txt name", function()
+  it("is the version README.md and doc/socle.txt name", function()
     local root = vim.fs.dirname(vim.fs.dirname(vim.fs.dirname(debug.getinfo(1, "S").source:sub(2))))
     local function read(rel)
       local f = assert(io.open(root .. "/" .. rel))
@@ -94,12 +94,12 @@ describe("versions", function()
       f:close()
       return s
     end
-    local readme, doc = read("README.md"), read("doc/socless.txt")
+    local readme, doc = read("README.md"), read("doc/socle.txt")
     local default = ('version = "%s"'):format(versions.PINNED)
     eq(true, readme:find(default, 1, true) ~= nil, "README.md: " .. default)
     eq(true, readme:find(("PINNED`, now %s)"):format(versions.PINNED), 1, true) ~= nil, "README.md: the pin")
-    eq(true, doc:find(default, 1, true) ~= nil, "doc/socless.txt: " .. default)
-    eq(true, doc:find(("tested against (%s)"):format(versions.PINNED), 1, true) ~= nil, "doc/socless.txt: the pin")
+    eq(true, doc:find(default, 1, true) ~= nil, "doc/socle.txt: " .. default)
+    eq(true, doc:find(("tested against (%s)"):format(versions.PINNED), 1, true) ~= nil, "doc/socle.txt: the pin")
     -- the bump steps name both constants
     eq(true, readme:find("PINNED_SHA256", 1, true) ~= nil, "README.md: PINNED_SHA256")
   end)

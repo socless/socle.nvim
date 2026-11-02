@@ -1,4 +1,4 @@
----`:checkhealth socless`.
+---`:checkhealth socle`.
 local M = {}
 
 local MIN_JAVA = 21
@@ -25,9 +25,9 @@ local function java_major(text)
   return tonumber(legacy or version:match("^(%d+)"))
 end
 
----@param cfg socless.Config
+---@param cfg socle.Config
 local function check_java(cfg)
-  local java = require("socless.client").java(cfg)
+  local java = require("socle.client").java(cfg)
   if vim.fn.executable(java) ~= 1 then
     return vim.health.error(("java not found (%s)"):format(java),
       { "Install Java 21 or later, or set the `java` option or $JAVA_HOME" })
@@ -46,15 +46,15 @@ end
 
 ---Reports a downloaded jar: the pinned version's is hashed again and
 ---compared with PINNED_SHA256 (a few hundred ms; checkhealth is synchronous).
----@param cfg socless.Config
+---@param cfg socle.Config
 ---@param path string
 local function check_pinned_hash(cfg, path)
-  local versions = require("socless.versions")
+  local versions = require("socle.versions")
   if cfg.version ~= versions.PINNED then
     return vim.health.ok(("server %s: %s (checked against the release's SHA256SUMS when downloaded)")
       :format(cfg.version, path))
   end
-  local jar = require("socless.jar")
+  local jar = require("socle.jar")
   local cmd = jar._hash_cmd(path)
   if not cmd then
     return vim.health.warn(("server %s: %s (cannot check its sha256: neither sha256sum nor shasum)")
@@ -68,16 +68,16 @@ local function check_pinned_hash(cfg, path)
   end
   if got ~= versions.PINNED_SHA256 then
     return vim.health.error(("server %s: %s does not match the pinned sha256 (expected %s, got %s)")
-      :format(cfg.version, path, versions.PINNED_SHA256, got), { "Run :Socless update to download it again" })
+      :format(cfg.version, path, versions.PINNED_SHA256, got), { "Run :Socle update to download it again" })
   end
   vim.health.ok(("server %s: %s (matches the pinned sha256)"):format(cfg.version, path))
 end
 
 ---Reports the jar; returns whether it must still be downloaded.
----@param cfg socless.Config
+---@param cfg socle.Config
 ---@return boolean need_download
 local function check_jar(cfg)
-  local path = require("socless.jar").path(cfg)
+  local path = require("socle.jar").path(cfg)
   local present = vim.uv.fs_stat(path) ~= nil
   if cfg.server_jar then
     if present then
@@ -92,7 +92,7 @@ local function check_jar(cfg)
     return false
   end
   vim.health.warn(("server %s not downloaded yet: %s"):format(cfg.version, path),
-    { "It is downloaded when the first Scala buffer of a Mill project opens, or with :Socless update" })
+    { "It is downloaded when the first Scala buffer of a Mill project opens, or with :Socle update" })
   return true
 end
 
@@ -119,7 +119,7 @@ local function check_download_tools(need_download)
       { "The downloaded jar cannot be checked: install coreutils (sha256sum) or perl (shasum)" })
   end
 
-  local repo = require("socless.jar").REPO
+  local repo = require("socle.jar").REPO
   if vim.fn.executable("gh") ~= 1 then
     return soft("gh not found" .. unneeded,
       { ("While %s is private, the download needs a logged-in gh, or set server_jar"):format(repo) })
@@ -172,7 +172,7 @@ end
 
 ---Simulate's tools: verilator, and the Surfer app for wave_viewer = "surfer"
 ---(or "custom" with no command, which the server runs as `<surfer> <trace>`).
----@param cfg socless.Config
+---@param cfg socle.Config
 local function check_simulate(cfg)
   if vim.fn.executable("verilator") == 1 then
     vim.health.ok("verilator")
@@ -198,17 +198,17 @@ local function check_simulate(cfg)
 end
 
 function M.check()
-  vim.health.start("socless.nvim")
+  vim.health.start("socle.nvim")
   if vim.fn.has("nvim-0.12") == 1 then
     vim.health.ok("Neovim 0.12 or later")
   else
     vim.health.error("Neovim 0.12 or later is needed")
   end
-  local cfg = require("socless").config
+  local cfg = require("socle").config
   if not cfg then
     vim.health.warn("setup() has not been called: checking with the default options",
-      { 'Call require("socless").setup()' })
-    cfg = require("socless.config").merge({})
+      { 'Call require("socle").setup()' })
+    cfg = require("socle.config").merge({})
   end
 
   vim.health.start("Server")

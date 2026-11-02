@@ -1,6 +1,6 @@
-local health = require("socless.health")
-local socless = require("socless")
-local config = require("socless.config")
+local health = require("socle.health")
+local socle = require("socle")
+local config = require("socle.config")
 
 describe("health", function()
   local real = {}
@@ -61,7 +61,7 @@ describe("health", function()
     real.health = vim.health
     real.executable = vim.fn.executable
     real.run = health._run
-    real.config = socless.config
+    real.config = socle.config
     real.stdpath = vim.fn.stdpath
     real.cwd = vim.fn.getcwd()
     real.java_home = vim.env.JAVA_HOME
@@ -85,13 +85,13 @@ describe("health", function()
     java_says('openjdk version "21.0.12.1" 2026-08-18')
     runs.gh = { code = 0, stdout = "", stderr = "Logged in to github.com account someone" }
     -- the pinned jar, when a spec puts one on disk, hashes to the pin
-    runs.sha256sum = { code = 0, stdout = require("socless.versions").PINNED_SHA256 .. "  x.jar\n", stderr = "" }
+    runs.sha256sum = { code = 0, stdout = require("socle.versions").PINNED_SHA256 .. "  x.jar\n", stderr = "" }
     -- a Mill project as the cwd, with its ./mill launcher
     touch(dir .. "/proj/build.mill")
     touch(dir .. "/proj/mill")
     vim.uv.fs_chmod(dir .. "/proj/mill", 493) -- 0755
     vim.cmd.cd(dir .. "/proj")
-    socless.config = config.merge({})
+    socle.config = config.merge({})
   end)
 
   after_each(function()
@@ -99,7 +99,7 @@ describe("health", function()
     vim.fn.executable = real.executable
     vim.fn.stdpath = real.stdpath
     health._run = real.run
-    socless.config = real.config
+    socle.config = real.config
     vim.env.JAVA_HOME = real.java_home
     vim.cmd.cd(real.cwd)
     vim.fn.delete(dir, "rf")
@@ -111,7 +111,7 @@ describe("health", function()
   end)
 
   it("says setup has not been called, and checks with the defaults", function()
-    socless.config = nil
+    socle.config = nil
     health.check()
     has("warn", "setup() has not been called")
     has("ok", "java 21")
@@ -162,7 +162,7 @@ describe("health", function()
 
     it("checks the java the client runs: cfg.java first", function()
       local asked
-      socless.config = config.merge({ java = "/opt/jdk/bin/java" })
+      socle.config = config.merge({ java = "/opt/jdk/bin/java" })
       tools["/opt/jdk/bin/java"] = 1
       local stub = health._run
       health._run = function(cmd)
@@ -188,13 +188,13 @@ describe("health", function()
   end)
 
   describe("jar", function()
-    local PIN = require("socless.versions").PINNED_SHA256
+    local PIN = require("socle.versions").PINNED_SHA256
     local function hashes_to(hash)
-      runs.sha256sum = { code = 0, stdout = hash .. "  " .. dir .. "/data/socless/socless-lsp-0.21.0.jar\n", stderr = "" }
+      runs.sha256sum = { code = 0, stdout = hash .. "  " .. dir .. "/data/socle/socle-lsp-0.22.0.jar\n", stderr = "" }
     end
 
     it("re-hashes a pinned jar on disk: OK when it matches PINNED_SHA256", function()
-      touch(dir .. "/data/socless/socless-lsp-0.21.0.jar")
+      touch(dir .. "/data/socle/socle-lsp-0.22.0.jar")
       local asked
       local stub = health._run
       health._run = function(cmd)
@@ -203,51 +203,51 @@ describe("health", function()
       end
       hashes_to(PIN)
       health.check()
-      eq({ "sha256sum", dir .. "/data/socless/socless-lsp-0.21.0.jar" }, asked)
-      has("ok", "socless-lsp-0.21.0.jar")
-      has("ok", "0.21.0")
+      eq({ "sha256sum", dir .. "/data/socle/socle-lsp-0.22.0.jar" }, asked)
+      has("ok", "socle-lsp-0.22.0.jar")
+      has("ok", "0.22.0")
       has("ok", "matches the pinned sha256")
     end)
 
     it("a pinned jar that does not match PINNED_SHA256 is an ERROR", function()
-      touch(dir .. "/data/socless/socless-lsp-0.21.0.jar")
+      touch(dir .. "/data/socle/socle-lsp-0.22.0.jar")
       hashes_to(string.rep("0", 64))
       health.check()
       has("error", "does not match the pinned sha256")
-      has("error", ":Socless update")
+      has("error", ":Socle update")
     end)
 
     it("a pinned jar that cannot be re-hashed is a WARN", function()
-      touch(dir .. "/data/socless/socless-lsp-0.21.0.jar")
+      touch(dir .. "/data/socle/socle-lsp-0.22.0.jar")
       tools.sha256sum = 0
       health.check()
-      has("warn", "socless-lsp-0.21.0.jar")
+      has("warn", "socle-lsp-0.22.0.jar")
     end)
 
     it("a jar of a version the user set was checked against SHA256SUMS", function()
-      touch(dir .. "/data/socless/socless-lsp-0.16.0.jar")
-      socless.config = config.merge({ version = "0.16.0" })
+      touch(dir .. "/data/socle/socle-lsp-0.16.0.jar")
+      socle.config = config.merge({ version = "0.16.0" })
       health.check()
-      has("ok", "socless-lsp-0.16.0.jar")
+      has("ok", "socle-lsp-0.16.0.jar")
       has("ok", "SHA256SUMS")
     end)
 
     it("a missing pinned jar is a WARN (downloaded with the first Scala buffer)", function()
       health.check()
-      has("warn", "socless-lsp-0.21.0.jar")
+      has("warn", "socle-lsp-0.22.0.jar")
       hasnt("error", "jar")
     end)
 
     it("a server_jar on disk is OK, version unknown, checksum not checked", function()
       touch(dir .. "/my.jar")
-      socless.config = config.merge({ server_jar = dir .. "/my.jar" })
+      socle.config = config.merge({ server_jar = dir .. "/my.jar" })
       health.check()
       has("ok", dir .. "/my.jar")
       has("ok", "not checked")
     end)
 
     it("a missing server_jar is an ERROR", function()
-      socless.config = config.merge({ server_jar = dir .. "/none.jar" })
+      socle.config = config.merge({ server_jar = dir .. "/none.jar" })
       health.check()
       has("error", dir .. "/none.jar")
     end)
@@ -262,7 +262,7 @@ describe("health", function()
 
     it("reports a missing gh as INFO when the jar is on disk", function()
       tools.gh = 0
-      touch(dir .. "/data/socless/socless-lsp-0.21.0.jar")
+      touch(dir .. "/data/socle/socle-lsp-0.22.0.jar")
       health.check()
       has("info", "gh not found")
       hasnt("warn", "gh")
@@ -271,7 +271,7 @@ describe("health", function()
     it("reports a missing gh as INFO with a server_jar", function()
       tools.gh = 0
       touch(dir .. "/my.jar")
-      socless.config = config.merge({ server_jar = dir .. "/my.jar" })
+      socle.config = config.merge({ server_jar = dir .. "/my.jar" })
       health.check()
       has("info", "gh not found")
       hasnt("warn", "gh")
@@ -285,7 +285,7 @@ describe("health", function()
 
     it("reports a gh that is not logged in as INFO when the jar is on disk", function()
       runs.gh = { code = 1, stdout = "", stderr = "You are not logged into any GitHub hosts." }
-      touch(dir .. "/data/socless/socless-lsp-0.21.0.jar")
+      touch(dir .. "/data/socle/socle-lsp-0.22.0.jar")
       health.check()
       has("info", "gh is not logged in")
       hasnt("warn", "gh")
@@ -324,7 +324,7 @@ describe("health", function()
 
     it("is only INFO with neither checksum tool when the jar is on disk", function()
       tools.sha256sum = 0
-      touch(dir .. "/data/socless/socless-lsp-0.21.0.jar")
+      touch(dir .. "/data/socle/socle-lsp-0.22.0.jar")
       health.check()
       has("info", "neither sha256sum nor shasum")
       hasnt("error", "sha256sum")
@@ -337,7 +337,7 @@ describe("health", function()
       reports = {}
       health.check()
       has("warn", "curl not found")
-      touch(dir .. "/data/socless/socless-lsp-0.21.0.jar")
+      touch(dir .. "/data/socle/socle-lsp-0.22.0.jar")
       reports = {}
       health.check()
       has("info", "curl not found")
@@ -400,7 +400,7 @@ describe("health", function()
     it("checks surfer_command, an executable (the server does not split it)", function()
       tools.surfer = 0
       tools["/opt/surfer/bin/surfer"] = 1
-      socless.config = config.merge({ settings = { surfer_command = " /opt/surfer/bin/surfer " } })
+      socle.config = config.merge({ settings = { surfer_command = " /opt/surfer/bin/surfer " } })
       health.check()
       has("ok", "/opt/surfer/bin/surfer")
       hasnt("warn", "surfer")
@@ -408,14 +408,14 @@ describe("health", function()
 
     it("checks surfer for wave_viewer = custom with no wave_viewer_command", function()
       tools.surfer = 0
-      socless.config = config.merge({ settings = { wave_viewer = "custom" } })
+      socle.config = config.merge({ settings = { wave_viewer = "custom" } })
       health.check()
       has("warn", "surfer not found")
     end)
 
     it("does not need surfer for wave_viewer = custom with a command", function()
       tools.surfer = 0
-      socless.config = config.merge({ settings = { wave_viewer = "custom", wave_viewer_command = "gtkwave {file}" } })
+      socle.config = config.merge({ settings = { wave_viewer = "custom", wave_viewer_command = "gtkwave {file}" } })
       health.check()
       hasnt("warn", "surfer")
       has("info", "custom")
@@ -423,7 +423,7 @@ describe("health", function()
 
     it("does not need surfer with wave_viewer = surfer-panel", function()
       tools.surfer = 0
-      socless.config = config.merge({ settings = { wave_viewer = "surfer-panel" } })
+      socle.config = config.merge({ settings = { wave_viewer = "surfer-panel" } })
       health.check()
       hasnt("warn", "surfer")
       has("info", "surfer-panel")

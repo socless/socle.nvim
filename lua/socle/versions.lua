@@ -1,13 +1,13 @@
 ---The pinned server release, and the server version each setting needs.
 local M = {}
 
----The SoCLess server release this plugin is tested against.
-M.PINNED = "0.21.0"
+---The Socle server release this plugin is tested against.
+M.PINNED = "0.22.0"
 
----The sha256 of the PINNED release's socless-lsp jar. The pinned jar must
+---The sha256 of the PINNED release's socle-lsp jar. The pinned jar must
 ---match it; the release's SHA256SUMS is only used for a `version` the user
 ---set. Bump it together with PINNED.
-M.PINNED_SHA256 = "b7f80894b551c50dab9b33d40f09eea9cac836964ddb2d2f49a0426699b7668b"
+M.PINNED_SHA256 = "00a87b04b681f38a8860445092bfad595c329aee223ac80a28d15a9d0cd01a95"
 
 ---The lowest server version that understands each `settings` option.
 ---@type table<string, string>
@@ -35,7 +35,7 @@ M.min = {
 ---One warning per set option that the server in use is too old for. A
 ---`server_jar` (or a version that does not parse) is of unknown version: no
 ---warning.
----@param cfg socless.Config
+---@param cfg socle.Config
 ---@return string[]
 function M.warnings(cfg)
   local out = {}
@@ -44,7 +44,7 @@ function M.warnings(cfg)
   for key in pairs(cfg.settings or {}) do
     local min = M.min[key]
     if min and vim.version.lt(using, min) then
-      table.insert(out, ("SoCLess: settings.%s needs server %s or later (this is %s), it may be ignored")
+      table.insert(out, ("Socle: settings.%s needs server %s or later (this is %s), it may be ignored")
         :format(key, min, cfg.version))
     end
   end

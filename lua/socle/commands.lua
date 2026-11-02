@@ -1,11 +1,11 @@
----`:Socless {view|simulate|panel|update|log|health}`.
+---`:Socle {view|simulate|panel|update|log|health}`.
 local M = {}
 
-local client = require("socless.client")
+local client = require("socle.client")
 
 M.SUBCOMMANDS = { "view", "simulate", "panel", "update", "log", "health" }
 
-local COMMAND = { view = "socless.viewDesign", simulate = "socless.simulate" }
+local COMMAND = { view = "socle.viewDesign", simulate = "socle.simulate" }
 ---How long `view` and `simulate` wait for the server's lenses.
 M._lens_timeout_ms = 10000
 
@@ -34,7 +34,7 @@ function M.pick_lens(lenses, cursor_line, command)
   return above or first
 end
 
----Calls `cb(lenses)` with the socless lenses of `buf`: those shown, else
+---Calls `cb(lenses)` with the socle lenses of `buf`: those shown, else
 ---asks the server once, waiting up to 10 s.
 local function lenses_of(c, buf, cb)
   local shown = vim.tbl_map(function(r) return r.lens end,
@@ -46,20 +46,20 @@ local function lenses_of(c, buf, cb)
       if done then return end -- timed out (and cancelled) already
       done = true
       if err then
-        return vim.notify(("SoCLess: cannot get the lenses: %s"):format(err.message or vim.inspect(err)),
+        return vim.notify(("Socle: cannot get the lenses: %s"):format(err.message or vim.inspect(err)),
           vim.log.levels.ERROR)
       end
       cb(result or {})
     end, buf)
   if not ok then
     done = true
-    return vim.notify("SoCLess: cannot ask the server for code lenses (it stopped?)", vim.log.levels.ERROR)
+    return vim.notify("Socle: cannot ask the server for code lenses (it stopped?)", vim.log.levels.ERROR)
   end
   vim.defer_fn(function()
     if done then return end
     done = true
     c:cancel_request(id)
-    vim.notify("SoCLess: timed out waiting for code lenses", vim.log.levels.WARN)
+    vim.notify("Socle: timed out waiting for code lenses", vim.log.levels.WARN)
   end, M._lens_timeout_ms)
 end
 
@@ -69,19 +69,19 @@ local function run_lens(which)
   local buf = vim.api.nvim_get_current_buf()
   local c = client.get(buf)
   if not c then
-    return vim.notify("SoCLess: not attached (a Mill project with build.mill?)", vim.log.levels.WARN)
+    return vim.notify("Socle: not attached (a Mill project with build.mill?)", vim.log.levels.WARN)
   end
   local line = vim.api.nvim_win_get_cursor(0)[1] - 1
   lenses_of(c, buf, function(lenses)
     local lens = M.pick_lens(lenses, line, COMMAND[which])
     if not lens then
-      return vim.notify("SoCLess: no ChiselSim test here", vim.log.levels.WARN)
+      return vim.notify("Socle: no ChiselSim test here", vim.log.levels.WARN)
     end
     c:request("workspace/executeCommand",
       { command = lens.command.command, arguments = lens.command.arguments },
       function(err)
         if err then
-          vim.notify(("SoCLess: %s failed: %s"):format(which, err.message or vim.inspect(err)),
+          vim.notify(("Socle: %s failed: %s"):format(which, err.message or vim.inspect(err)),
             vim.log.levels.ERROR)
         end
       end, buf)
@@ -91,9 +91,9 @@ end
 ---Downloads the jar again (the one on disk stays until the new one
 ---verified), then restarts the client on it, or starts one.
 local function update(cfg)
-  local jar = require("socless.jar")
+  local jar = require("socle.jar")
   if cfg.server_jar then
-    return vim.notify("SoCLess: server_jar is set, nothing to download", vim.log.levels.INFO)
+    return vim.notify("Socle: server_jar is set, nothing to download", vim.log.levels.INFO)
   end
   jar.ensure(cfg, function(path, err)
     if not path then return vim.notify(err, vim.log.levels.ERROR) end
@@ -104,15 +104,15 @@ end
 ---Runs one subcommand.
 ---@param sub string|nil
 function M.run(sub)
-  if sub == "health" then return vim.cmd("checkhealth socless") end
+  if sub == "health" then return vim.cmd("checkhealth socle") end
   if sub == "log" then return vim.cmd.tabedit(vim.lsp.log.get_filename()) end
   if not vim.tbl_contains(M.SUBCOMMANDS, sub) then
-    return vim.notify(("SoCLess: unknown subcommand %s (expected %s)")
+    return vim.notify(("Socle: unknown subcommand %s (expected %s)")
       :format(vim.inspect(sub), table.concat(M.SUBCOMMANDS, ", ")), vim.log.levels.ERROR)
   end
-  local cfg = require("socless").config
+  local cfg = require("socle").config
   if not cfg then
-    return vim.notify('SoCLess: call require("socless").setup() first', vim.log.levels.WARN)
+    return vim.notify('Socle: call require("socle").setup() first', vim.log.levels.WARN)
   end
   if sub == "panel" then return client.open_last() end
   if sub == "update" then return update(cfg) end

@@ -1,6 +1,6 @@
-# socless.nvim
+# socle.nvim
 
-A Neovim plugin for [SoCLess](https://github.com/e-ban/SoCless), the Chisel IDE
+A Neovim plugin for [Socle](https://github.com/e-ban/socle), the Chisel IDE
 language server. In a Chisel project built with Mill, it adds a **View design**
 and a **Simulate** code lens above every ChiselSim test:
 
@@ -10,24 +10,24 @@ and a **Simulate** code lens above every ChiselSim test:
 - **Simulate** runs the test with waveforms on and shows the trace in Surfer,
   following the panel's selection.
 
-The plugin downloads the SoCLess server release it is tested against, checks
+The plugin downloads the Socle server release it is tested against, checks
 its sha256, and starts it next to Metals. Your tests and build are never
-modified. The server itself is described in SoCLess's
-[Neovim guide](https://github.com/e-ban/SoCless/blob/main/docs/ide-neovim.md).
+modified. The server itself is described in Socle's
+[Neovim guide](https://github.com/e-ban/socle/blob/main/docs/ide-neovim.md).
 
 ## Private repository
 
-Both repositories (e-ban/SoCless and e-ban/socless.nvim) are private for now:
+Both repositories (e-ban/socle and e-ban/socle.nvim) are private for now:
 
-- **Installing the plugin** needs git access to e-ban/socless.nvim: an SSH key
+- **Installing the plugin** needs git access to e-ban/socle.nvim: an SSH key
   or git credentials for GitHub. Use the `git@github.com:` URL shown with each
   snippet below.
 - **The server jar download** fails anonymously (curl gets a 404). The plugin
   then tries `gh release download`, which works with a logged-in
-  [gh](https://cli.github.com/) (`gh auth login`) that can read e-ban/SoCless.
+  [gh](https://cli.github.com/) (`gh auth login`) that can read e-ban/socle.
   Otherwise, set `server_jar` to a jar you got some other way.
 
-`:checkhealth socless` reports whether gh is installed and logged in.
+`:checkhealth socle` reports whether gh is installed and logged in.
 
 ## Requirements
 
@@ -47,50 +47,50 @@ Both repositories (e-ban/SoCless and e-ban/socless.nvim) are private for now:
 
 ## Install
 
-Every snippet calls `require("socless").setup()`: nothing happens before it.
+Every snippet calls `require("socle").setup()`: nothing happens before it.
 The server starts with the first Scala buffer of a Mill project. The first
-start downloads the jar, so it takes a few seconds once ("SoCLess: downloading
-server ...", then "SoCLess: server ... ready").
+start downloads the jar, so it takes a few seconds once ("Socle: downloading
+server ...", then "Socle: server ... ready").
 
 ### lazy.nvim and LazyVim
 
 ```lua
 {
-  "e-ban/socless.nvim",
+  "e-ban/socle.nvim",
   -- while the repository is private:
-  -- url = "git@github.com:e-ban/socless.nvim.git",
+  -- url = "git@github.com:e-ban/socle.nvim.git",
   ft = "scala",
-  cmd = "Socless",
+  cmd = "Socle",
   -- the options and the settings, flat (see Options)
   opts = { wave_viewer = "surfer-panel" },
   keys = {
-    { "<leader>cV", "<cmd>Socless view<cr>", ft = "scala", desc = "SoCLess: view design" },
-    { "<leader>cX", "<cmd>Socless simulate<cr>", ft = "scala", desc = "SoCLess: simulate" },
-    { "<leader>cP", "<cmd>Socless panel<cr>", ft = "scala", desc = "SoCLess: open the panel" },
+    { "<leader>cV", "<cmd>Socle view<cr>", ft = "scala", desc = "Socle: view design" },
+    { "<leader>cX", "<cmd>Socle simulate<cr>", ft = "scala", desc = "Socle: simulate" },
+    { "<leader>cP", "<cmd>Socle panel<cr>", ft = "scala", desc = "Socle: open the panel" },
   },
 }
 ```
 
-With `opts`, lazy.nvim calls `require("socless").setup(opts)` for you. In
+With `opts`, lazy.nvim calls `require("socle").setup(opts)` for you. In
 LazyVim, put the spec in a file under `lua/plugins/`. Pick keys that are free
 in your config.
 
 ### vim.pack (Neovim 0.12)
 
 ```lua
-vim.pack.add({ "https://github.com/e-ban/socless.nvim" })
+vim.pack.add({ "https://github.com/e-ban/socle.nvim" })
 -- while the repository is private:
--- vim.pack.add({ "git@github.com:e-ban/socless.nvim.git" })
-require("socless").setup()
+-- vim.pack.add({ "git@github.com:e-ban/socle.nvim.git" })
+require("socle").setup()
 ```
 
 ### mini.deps
 
 ```lua
-MiniDeps.add({ source = "e-ban/socless.nvim" })
+MiniDeps.add({ source = "e-ban/socle.nvim" })
 -- while the repository is private:
--- MiniDeps.add({ source = "git@github.com:e-ban/socless.nvim.git" })
-require("socless").setup()
+-- MiniDeps.add({ source = "git@github.com:e-ban/socle.nvim.git" })
+require("socle").setup()
 ```
 
 ### packer.nvim
@@ -99,9 +99,9 @@ packer.nvim is unmaintained, but this still works:
 
 ```lua
 use({
-  "e-ban/socless.nvim",
-  -- while the repository is private: "git@github.com:e-ban/socless.nvim.git"
-  config = function() require("socless").setup() end,
+  "e-ban/socle.nvim",
+  -- while the repository is private: "git@github.com:e-ban/socle.nvim.git"
+  config = function() require("socle").setup() end,
 })
 ```
 
@@ -109,12 +109,12 @@ use({
 
 ```vim
 call plug#begin()
-Plug 'e-ban/socless.nvim'
+Plug 'e-ban/socle.nvim'
 " while the repository is private:
-" Plug 'git@github.com:e-ban/socless.nvim.git'
+" Plug 'git@github.com:e-ban/socle.nvim.git'
 call plug#end()
 
-lua require("socless").setup()
+lua require("socle").setup()
 ```
 
 ## Options
@@ -122,8 +122,8 @@ lua require("socless").setup()
 The defaults:
 
 ```lua
-require("socless").setup({
-  version = "0.21.0",   -- the server release to download (the pin, see below)
+require("socle").setup({
+  version = "0.22.0",   -- the server release to download (the pin, see below)
   server_jar = nil,     -- a local jar: overrides version and the download
   java = nil,           -- nil: $JAVA_HOME/bin/java, else "java"
   codelens = true,      -- show the View design and Simulate lenses
@@ -175,7 +175,7 @@ another class).
 Example:
 
 ```lua
-require("socless").setup({
+require("socle").setup({
   open_panel = { "firefox", "--new-window" },
   wave_flag = "emitFst",
   wave_viewer = "surfer-panel",
@@ -183,29 +183,29 @@ require("socless").setup({
 ```
 
 Calling `setup` again with new options applies them by restarting the server
-("SoCLess: restarted with the new options"): the open Scala buffers attach to
+("Socle: restarted with the new options"): the open Scala buffers attach to
 the new one.
 
 ## Commands
 
-`:Socless {subcommand}`, with completion:
+`:Socle {subcommand}`, with completion:
 
 | Command | What it does |
 |---------|--------------|
-| `:Socless view` | Runs the View design lens of the test at or above the cursor (else the first one in the file). |
-| `:Socless simulate` | The same with the Simulate lens. |
-| `:Socless panel` | Opens the last view's panel again. |
-| `:Socless update` | Downloads the jar again and restarts the server on it (or starts one). The jar on disk is only replaced once the new one verified, so a failed update keeps it. |
-| `:Socless log` | Opens the LSP log (`vim.lsp.log.get_filename()`), which holds the server's stderr, in a new tab. |
-| `:Socless health` | Runs `:checkhealth socless`. |
+| `:Socle view` | Runs the View design lens of the test at or above the cursor (else the first one in the file). |
+| `:Socle simulate` | The same with the Simulate lens. |
+| `:Socle panel` | Opens the last view's panel again. |
+| `:Socle update` | Downloads the jar again and restarts the server on it (or starts one). The jar on disk is only replaced once the new one verified, so a failed update keeps it. |
+| `:Socle log` | Opens the LSP log (`vim.lsp.log.get_filename()`), which holds the server's stderr, in a new tab. |
+| `:Socle health` | Runs `:checkhealth socle`. |
 
 The lenses also run with Neovim's own `grx` mapping or
 `vim.lsp.codelens.run()`. The browser opens once per panel URL: a later view
-updates the open tab, and `:Socless panel` opens it again.
+updates the open tab, and `:Socle panel` opens it again.
 
 ## Health
 
-`:checkhealth socless` (or `:Socless health`) checks:
+`:checkhealth socle` (or `:Socle health`) checks:
 
 - Neovim 0.12 or later, and that `setup()` was called;
 - the java the server runs with, and that it is Java 21 or later (an ERROR
@@ -223,43 +223,43 @@ updates the open tab, and `:Socless panel` opens it again.
 
 ## With Metals
 
-socless.nvim runs next to Metals or nvim-metals: both clients attach to the
-same Scala buffers. The SoCLess server offers only its lenses, its commands,
+socle.nvim runs next to Metals or nvim-metals: both clients attach to the
+same Scala buffers. The Socle server offers only its lenses, its commands,
 save handling and cursor following: no diagnostics, completion, hover or
-definition. The plugin enables code lenses for the `socless` client only, so
+definition. The plugin enables code lenses for the `socle` client only, so
 Metals' lenses stay as Metals configures them.
 
 ## The server version
 
 Each plugin release pins the server release it is tested against
-(`require("socless.versions").PINNED`, now 0.21.0). The jar goes to
-`stdpath("data")/socless/socless-lsp-<version>.jar` and is downloaded once,
-from `https://github.com/e-ban/SoCless/releases/download/v<version>/`. The
-pin includes the jar's sha256 (`require("socless.versions").PINNED_SHA256`):
+(`require("socle.versions").PINNED`, now 0.22.0). The jar goes to
+`stdpath("data")/socle/socle-lsp-<version>.jar` and is downloaded once,
+from `https://github.com/e-ban/socle/releases/download/v<version>/`. The
+pin includes the jar's sha256 (`require("socle.versions").PINNED_SHA256`):
 the pinned jar must match it, so a release asset replaced after the plugin
 release is refused. The release's `SHA256SUMS` is only used for a `version`
 you set. A download that fails, or whose checksum does not match, leaves
 nothing behind. It is not retried for each new Scala buffer, only on the next
-`setup` or `:Socless update`. Updating the plugin moves the pin, and the new
+`setup` or `:Socle update`. Updating the plugin moves the pin, and the new
 jar is downloaded on the next start.
 
 To override the pin:
 
 - `version = "0.16.0"` downloads and runs that release instead, checked
   against its `SHA256SUMS`. Settings it does not know get a warning.
-- `server_jar = "~/socless/out/socless-lsp/assembly.dest/out.jar"` runs a
-  local jar, such as one built from SoCLess with `./mill socless-lsp.assembly`.
+- `server_jar = "~/socle/out/socle-lsp/assembly.dest/out.jar"` runs a
+  local jar, such as one built from Socle with `./mill socle-lsp.assembly`.
   Nothing is downloaded, and no version check applies.
 
-`:Socless update` downloads the jar again.
+`:Socle update` downloads the jar again.
 
 To bump the pin (a plugin release):
 
 1. Get the new release's checksums:
-   `gh release download v<new> --repo e-ban/SoCless --pattern SHA256SUMS`.
-2. In `lua/socless/versions.lua`, set `PINNED` to `<new>` and `PINNED_SHA256`
-   to the `socless-lsp-<new>.jar` line's hash.
-3. Update the version this README and `doc/socless.txt` name (the unit
+   `gh release download v<new> --repo e-ban/socle --pattern SHA256SUMS`.
+2. In `lua/socle/versions.lua`, set `PINNED` to `<new>` and `PINNED_SHA256`
+   to the `socle-lsp-<new>.jar` line's hash.
+3. Update the version this README and `doc/socle.txt` name (the unit
    specs check them), and run the specs and the integration spec.
 
 ## Development
@@ -270,16 +270,16 @@ nvim --headless -u NONE -l tests/run.lua health     # those whose path matches a
 ```
 
 The unit specs need neither network nor Java. The specs under
-`tests/integration/` run the real server on SoCLess's `example/` project. They
+`tests/integration/` run the real server on Socle's `example/` project. They
 need two variables, and are skipped (not failed) without them:
 
-- `SOCLESS_ROOT`: a SoCLess checkout. View design runs `./mill` there and
+- `SOCLE_ROOT`: a Socle checkout. View design runs `./mill` there and
   writes its `out/` directory, so use a scratch clone, not one you work in
-  (`git clone --branch v0.21.0 ~/dev/socless /tmp/socless`);
-- `SOCLESS_JAR`: its server jar, `socless-lsp-<version>.jar`.
+  (`git clone --branch v0.22.0 ~/dev/socle /tmp/socle`);
+- `SOCLE_JAR`: its server jar, `socle-lsp-<version>.jar`.
 
 ```sh
-SOCLESS_ROOT=/tmp/socless SOCLESS_JAR=/path/to/socless-lsp-0.21.0.jar \
+SOCLE_ROOT=/tmp/socle SOCLE_JAR=/path/to/socle-lsp-0.22.0.jar \
   nvim --headless -u NONE -l tests/run.lua integration
 ```
 
@@ -288,13 +288,13 @@ CI (`.github/workflows/ci.yml`) has two jobs:
 - **unit** runs the specs on every push to main and every pull request, on
   Neovim 0.12.6.
 - **integration** runs only when started by hand (Actions, "Run workflow"),
-  because e-ban/SoCless is private. It checks out SoCLess at the pinned
+  because e-ban/socle is private. It checks out Socle at the pinned
   version (read from `versions.PINNED`), downloads
   and checks its release jar, and runs `tests/integration` (Java 21, no
   Verilator: View design does not simulate). It needs a repository secret,
-  `SOCLESS_TOKEN`: a fine-grained personal access token with read access to
-  the contents of e-ban/SoCless (Settings, Secrets and variables, Actions).
+  `SOCLE_TOKEN`: a fine-grained personal access token with read access to
+  the contents of e-ban/socle (Settings, Secrets and variables, Actions).
 
 ## License
 
-MIT, like SoCLess. See [LICENSE](LICENSE).
+MIT, like Socle. See [LICENSE](LICENSE).

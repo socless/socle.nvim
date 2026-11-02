@@ -1,14 +1,14 @@
--- The real server on SoCLess's example project: View design on GcdSpec.
+-- The real server on Socle's example project: View design on GcdSpec.
 --
---   SOCLESS_ROOT=<a SoCLess checkout> SOCLESS_JAR=<its socless-lsp jar> \
+--   SOCLE_ROOT=<a Socle checkout> SOCLE_JAR=<its socle-lsp jar> \
 --     nvim --headless -u NONE -l tests/run.lua integration
 --
--- View design runs ./mill in SOCLESS_ROOT (it writes the Mill out/ dir there):
+-- View design runs ./mill in SOCLE_ROOT (it writes the Mill out/ dir there):
 -- point it at a scratch clone, not a checkout you work in. The first run
 -- compiles the example, which can take minutes.
 
-local root = vim.fs.normalize(vim.env.SOCLESS_ROOT)
-local server_jar = vim.fs.normalize(vim.env.SOCLESS_JAR)
+local root = vim.fs.normalize(vim.env.SOCLE_ROOT)
+local server_jar = vim.fs.normalize(vim.env.SOCLE_JAR)
 local gcd_spec = root .. "/example/test/src/gcd/GcdSpec.scala"
 
 -- the server's JVM start, then its first parse
@@ -23,9 +23,9 @@ local function wait(ms, cond, what)
   if not vim.wait(ms, cond, 200) then error("timed out waiting for " .. what, 2) end
 end
 
----The socless client attached to `buf`, if any.
+---The socle client attached to `buf`, if any.
 local function client_of(buf)
-  return vim.lsp.get_clients({ name = "socless", bufnr = buf })[1]
+  return vim.lsp.get_clients({ name = "socle", bufnr = buf })[1]
 end
 
 ---`GET <url>ide.json`, decoded, or nil while the server does not answer.
@@ -47,8 +47,8 @@ describe("integration", function()
     assert(vim.uv.fs_stat(gcd_spec), "no " .. gcd_spec)
     assert(vim.uv.fs_stat(server_jar), "no " .. server_jar)
     vim.cmd("filetype on")
-    vim.cmd.runtime("plugin/socless.lua") -- -u NONE loads no plugin: declares :Socless
-    require("socless").setup({
+    vim.cmd.runtime("plugin/socle.lua") -- -u NONE loads no plugin: declares :Socle
+    require("socle").setup({
       server_jar = server_jar,
       open_panel = function(url) table.insert(opened, url) end,
       schematic_density = "compact", -- reaches the panel through ide.json (0.18.0)
@@ -56,20 +56,20 @@ describe("integration", function()
     vim.cmd.edit(vim.fn.fnameescape(gcd_spec))
     buf = vim.api.nvim_get_current_buf()
     eq("scala", vim.bo[buf].filetype)
-    wait(ATTACH_MS, function() return client_of(buf) end, "the socless client")
+    wait(ATTACH_MS, function() return client_of(buf) end, "the socle client")
     c = client_of(buf)
     eq(root, c.root_dir)
     wait(ATTACH_MS, function()
       for _, r in ipairs(vim.lsp.codelens.get({ bufnr = buf, client_id = c.id }) or {}) do
-        if r.lens.command and r.lens.command.command == "socless.viewDesign" then return true end
+        if r.lens.command and r.lens.command.command == "socle.viewDesign" then return true end
       end
-    end, "a socless.viewDesign lens")
+    end, "a socle.viewDesign lens")
   end)
 
-  it(":Socless view opens the panel once, and ide.json says ok", function()
+  it(":Socle view opens the panel once, and ide.json says ok", function()
     assert(c, "no client (the first spec failed)")
-    vim.cmd("Socless view")
-    wait(VIEW_MS, function() return opened[1] end, "socless/openPanel")
+    vim.cmd("Socle view")
+    wait(VIEW_MS, function() return opened[1] end, "socle/openPanel")
     local url = opened[1]
     -- the server's page, opened as an editor's panel
     local base = url:match("^(http://127%.0%.0%.1:%d+/)%?panel=1$")
@@ -100,10 +100,10 @@ describe("integration", function()
 
   it("stops the server", function()
     -- a client leaves get_clients once its server process exited
-    local function running() return #vim.lsp.get_clients({ name = "socless" }) end
-    for _, cl in ipairs(vim.lsp.get_clients({ name = "socless" })) do cl:stop() end
+    local function running() return #vim.lsp.get_clients({ name = "socle" }) end
+    for _, cl in ipairs(vim.lsp.get_clients({ name = "socle" })) do cl:stop() end
     if not vim.wait(10000, function() return running() == 0 end, 100) then
-      for _, cl in ipairs(vim.lsp.get_clients({ name = "socless" })) do cl:stop(true) end
+      for _, cl in ipairs(vim.lsp.get_clients({ name = "socle" })) do cl:stop(true) end
       wait(5000, function() return running() == 0 end, "the server to exit")
     end
   end)

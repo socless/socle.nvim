@@ -32,9 +32,9 @@ jobs:
           nvim --version | head -1
           nvim --headless -u NONE -l tests/run.lua
 
-  # Runs the real server on SoCLess's example project. Manual only: both
-  # repositories are private, so it needs the SOCLESS_TOKEN secret (read access
-  # to e-ban/SoCless, see the README's Development section).
+  # Runs the real server on Socle's example project. Manual only: both
+  # repositories are private, so it needs the SOCLE_TOKEN secret (read access
+  # to e-ban/socle, see the README's Development section).
   integration:
     name: Integration test (real server)
     if: github.event_name == 'workflow_dispatch'
@@ -50,20 +50,20 @@ jobs:
           tar -xzf "$RUNNER_TEMP/nvim.tar.gz" -C "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
 
-      # One source for the pin: lua/socless/versions.lua.
+      # One source for the pin: lua/socle/versions.lua.
       - name: Read the pinned server version
         run: |
-          pin=$(nvim --headless -u NONE --cmd 'set rtp+=.' -l - <<<'io.write(require("socless.versions").PINNED)')
+          pin=$(nvim --headless -u NONE --cmd 'set rtp+=.' -l - <<<'io.write(require("socle.versions").PINNED)')
           test -n "$pin"
-          echo "SOCLESS_VERSION=$pin" >> "$GITHUB_ENV"
+          echo "SOCLE_VERSION=$pin" >> "$GITHUB_ENV"
 
-      - name: Check out SoCLess v${{ env.SOCLESS_VERSION }}
+      - name: Check out Socle v${{ env.SOCLE_VERSION }}
         uses: actions/checkout@v7
         with:
-          repository: e-ban/SoCless
-          ref: v${{ env.SOCLESS_VERSION }}
-          path: socless
-          token: ${{ secrets.SOCLESS_TOKEN }}
+          repository: e-ban/socle
+          ref: v${{ env.SOCLE_VERSION }}
+          path: socle
+          token: ${{ secrets.SOCLE_TOKEN }}
           persist-credentials: false
 
       # The server is `java -jar` and needs Java 21. Verilator is not needed:
@@ -81,28 +81,28 @@ jobs:
             ~/.cache/coursier
             ~/.cache/mill
             ~/.mill
-          key: mill-${{ runner.os }}-socless-${{ hashFiles('socless/build.mill') }}
+          key: mill-${{ runner.os }}-socle-${{ hashFiles('socle/build.mill') }}
           restore-keys: |
-            mill-${{ runner.os }}-socless-
+            mill-${{ runner.os }}-socle-
 
       - name: Download the server jar
         env:
-          GH_TOKEN: ${{ secrets.SOCLESS_TOKEN }}
+          GH_TOKEN: ${{ secrets.SOCLE_TOKEN }}
         run: |
           mkdir -p "$RUNNER_TEMP/jar"
-          gh release download "v$SOCLESS_VERSION" --repo e-ban/SoCless \
-            --pattern "socless-lsp-$SOCLESS_VERSION.jar" --pattern SHA256SUMS --dir "$RUNNER_TEMP/jar"
+          gh release download "v$SOCLE_VERSION" --repo e-ban/socle \
+            --pattern "socle-lsp-$SOCLE_VERSION.jar" --pattern SHA256SUMS --dir "$RUNNER_TEMP/jar"
           (cd "$RUNNER_TEMP/jar" && sha256sum -c --ignore-missing SHA256SUMS)
-          echo "SOCLESS_JAR=$RUNNER_TEMP/jar/socless-lsp-$SOCLESS_VERSION.jar" >> "$GITHUB_ENV"
-          echo "SOCLESS_ROOT=$GITHUB_WORKSPACE/socless" >> "$GITHUB_ENV"
+          echo "SOCLE_JAR=$RUNNER_TEMP/jar/socle-lsp-$SOCLE_VERSION.jar" >> "$GITHUB_ENV"
+          echo "SOCLE_ROOT=$GITHUB_WORKSPACE/socle" >> "$GITHUB_ENV"
 
       # The server bounds each Mill call (10 min): compile the example first,
       # so the spec's view only asks Mill for the classpath, as it does locally.
       - name: Compile the example
-        working-directory: socless
+        working-directory: socle
         run: ./mill --ticker false example.test.compile
 
-      # The runner skips tests/integration without SOCLESS_ROOT and SOCLESS_JAR;
+      # The runner skips tests/integration without SOCLE_ROOT and SOCLE_JAR;
       # here both are set, so a missing spec must fail instead of passing empty.
       - name: Run the integration specs
         run: |

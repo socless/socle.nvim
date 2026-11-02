@@ -1,6 +1,6 @@
-local commands = require("socless.commands")
+local commands = require("socle.commands")
 
-local VIEW, SIM = "socless.viewDesign", "socless.simulate"
+local VIEW, SIM = "socle.viewDesign", "socle.simulate"
 local function lens(line, cmd)
   return { range = { start = { line = line, character = 0 }, ["end"] = { line = line, character = 0 } },
     command = { title = cmd, command = cmd, arguments = { "file:///x", "S", "t" .. line } } }
@@ -25,20 +25,20 @@ describe("pick_lens", function()
   end)
 end)
 
-describe(":Socless", function()
+describe(":Socle", function()
   it("completes the six subcommands", function()
     eq({ "view", "simulate", "panel", "update", "log", "health" }, commands.complete(""))
     eq({ "simulate" }, commands.complete("si"))
   end)
 
-  it("is declared by plugin/socless.lua with that completion", function()
-    vim.cmd.runtime("plugin/socless.lua")
-    eq(2, vim.fn.exists(":Socless"))
-    eq({ "view", "simulate", "panel", "update", "log", "health" }, vim.fn.getcompletion("Socless ", "cmdline"))
+  it("is declared by plugin/socle.lua with that completion", function()
+    vim.cmd.runtime("plugin/socle.lua")
+    eq(2, vim.fn.exists(":Socle"))
+    eq({ "view", "simulate", "panel", "update", "log", "health" }, vim.fn.getcompletion("Socle ", "cmdline"))
   end)
 end)
 
-describe(":Socless log", function()
+describe(":Socle log", function()
   it("opens vim.lsp.log.get_filename() in a tab (not the deprecated get_log_path)", function()
     local real_get, real_old, opened = vim.lsp.log.get_filename, vim.lsp.get_log_path, nil
     vim.lsp.log.get_filename = function() return "/x/lsp.log" end
@@ -51,9 +51,9 @@ describe(":Socless log", function()
   end)
 end)
 
-describe(":Socless update", function()
-  local jar = require("socless.jar")
-  local client = require("socless.client")
+describe(":Socle update", function()
+  local jar = require("socle.jar")
+  local client = require("socle.client")
   local data, real, notes
 
   before_each(function()
@@ -64,18 +64,18 @@ describe(":Socless update", function()
     vim.fn.stdpath = function(what) return what == "data" and data or real.stdpath(what) end
     vim.fn.executable = function(name) return name == "gh" and 0 or real.executable(name) end
     vim.notify = function(msg, level) table.insert(notes, { msg = msg, level = level }) end
-    require("socless").config = require("socless.config").merge({})
+    require("socle").config = require("socle.config").merge({})
   end)
 
   after_each(function()
     vim.fn.stdpath, jar._fetch, jar._fetch_gh, vim.notify = real.stdpath, real.fetch, real.fetch_gh, real.notify
     vim.fn.executable, client.updated = real.executable, real.updated
-    require("socless").config = nil
+    require("socle").config = nil
     vim.fn.delete(data, "rf")
   end)
 
   it("keeps the old jar when the download fails (the network is down)", function()
-    local path = jar.path(require("socless").config)
+    local path = jar.path(require("socle").config)
     vim.fn.mkdir(vim.fs.dirname(path), "p")
     vim.fn.writefile({ "old jar" }, path)
     jar._fetch = function(_, _, cb) vim.schedule(function() cb("curl: (6) Could not resolve host") end) end
@@ -103,20 +103,20 @@ describe(":Socless update", function()
 end)
 
 describe("view and simulate", function()
-  local client = require("socless.client")
+  local client = require("socle.client")
   local notes, requests, real_notify, real_get
   before_each(function()
     notes, requests = {}, {}
     real_notify, real_get = vim.notify, vim.lsp.codelens.get
     vim.notify = function(msg, level) table.insert(notes, { msg = msg, level = level }) end
-    require("socless").config = require("socless.config").merge({})
+    require("socle").config = require("socle.config").merge({})
   end)
   after_each(function()
     vim.notify, vim.lsp.codelens.get = real_notify, real_get
     client._get = nil
   end)
 
-  ---A fake socless client: answers textDocument/codeLens with `answer` (async).
+  ---A fake socle client: answers textDocument/codeLens with `answer` (async).
   local function fake(answer)
     client._get = function()
       return {
@@ -139,7 +139,7 @@ describe("view and simulate", function()
   it("says so when not attached", function()
     client._get = function() return nil end
     commands.run("view")
-    eq("SoCLess: not attached (a Mill project with build.mill?)", notes[1].msg)
+    eq("Socle: not attached (a Mill project with build.mill?)", notes[1].msg)
   end)
 
   it("asks for lenses when there are none yet, then runs the closest one", function()
@@ -205,7 +205,7 @@ describe("view and simulate", function()
     commands._lens_timeout_ms = saved
     assert(ok, "no timeout notice")
     eq(42, cancelled)
-    eq("SoCLess: timed out waiting for code lenses", notes[1].msg)
+    eq("Socle: timed out waiting for code lenses", notes[1].msg)
   end)
 
   it("says no ChiselSim test here when there is no lens", function()
@@ -213,6 +213,6 @@ describe("view and simulate", function()
     fake({})
     commands.run("view")
     wait_for(99)
-    eq("SoCLess: no ChiselSim test here", notes[1].msg)
+    eq("Socle: no ChiselSim test here", notes[1].msg)
   end)
 end)

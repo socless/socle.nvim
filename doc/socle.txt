@@ -1,15 +1,15 @@
-*socless.txt*  SoCLess, the Chisel IDE language server, in Neovim
+*socle.txt*  Socle, the Chisel IDE language server, in Neovim
 
-                                                                     *socless*
-socless.nvim runs the SoCLess language server for Chisel projects built with
+                                                                     *socle*
+socle.nvim runs the Socle language server for Chisel projects built with
 Mill. It adds a "View design" and a "Simulate" code lens above every ChiselSim
 test. View design shows the test's design in a live panel in your browser;
 Simulate runs the test with waveforms and shows them in Surfer.
 
 The plugin downloads the pinned server release, checks its sha256 and starts
 it next to Metals. Your tests and build are never modified. The server is
-described in SoCLess's docs/ide-neovim.md:
-https://github.com/e-ban/SoCless/blob/main/docs/ide-neovim.md
+described in Socle's docs/ide-neovim.md:
+https://github.com/e-ban/socle/blob/main/docs/ide-neovim.md
 
 Requirements: Neovim 0.12, Java 21 or later, a Mill project (build.mill at
 its root, and ./mill there or mill on PATH). To download the jar: curl, and
@@ -17,18 +17,18 @@ sha256sum or shasum. For Simulate: Verilator, and the Surfer app unless
 wave_viewer is "surfer-panel". Windows is not tested: without sha256sum or
 shasum, set `server_jar`.
 
-While e-ban/SoCless is private, the anonymous download fails and the plugin
+While e-ban/socle is private, the anonymous download fails and the plugin
 falls back to `gh release download`: run `gh auth login`, or set
 `server_jar`.
 
 ==============================================================================
-SETUP                                                          *socless-setup*
+SETUP                                                          *socle-setup*
 
 Nothing happens before setup() is called: >lua
-    require("socless").setup({})
+    require("socle").setup({})
 <
 With lazy.nvim: >lua
-    { "e-ban/socless.nvim", ft = "scala", cmd = "Socless",
+    { "e-ban/socle.nvim", ft = "scala", cmd = "Socle",
       opts = { wave_viewer = "surfer-panel" } }
 <
 The server starts with the first Scala buffer of a Mill project (a build.mill
@@ -36,11 +36,11 @@ above the file). The first start downloads the jar, with a notice when it
 starts and when the server is ready.
 
 ==============================================================================
-OPTIONS                                                      *socless-options*
+OPTIONS                                                      *socle-options*
 
 The defaults: >lua
-    require("socless").setup({
-      version = "0.21.0",   -- server release to download
+    require("socle").setup({
+      version = "0.22.0",   -- server release to download
       server_jar = nil,     -- a local jar: overrides version and download
       java = nil,           -- nil: $JAVA_HOME/bin/java, else "java"
       codelens = true,      -- show the lenses
@@ -51,7 +51,7 @@ The defaults: >lua
       settings = {},        -- sent to the server, see below
     })
 <
-                                                    *socless-settings*
+                                                    *socle-settings*
 The settings, sent to the server in camelCase. They go directly in the
 options (flat: `wave_viewer = "surfer-panel"`) or under `settings`; a key in
 both places takes the `settings` value. A key left out is not sent (the
@@ -84,37 +84,37 @@ wave_flag and surfer_command need server 0.16.0, the other wave settings
 applies them by restarting the server; the open Scala buffers attach to the
 new one.
 
-                                                     *socless-version*
-Each plugin release pins the server version it is tested against (0.21.0),
+                                                     *socle-version*
+Each plugin release pins the server version it is tested against (0.22.0),
 and the sha256 of its jar. The jar goes to
-stdpath("data")/socless/socless-lsp-<version>.jar, downloaded once from the
+stdpath("data")/socle/socle-lsp-<version>.jar, downloaded once from the
 GitHub release. The pinned jar must match the pinned sha256; a `version` you
 set is checked against the release's SHA256SUMS. A failed download leaves
-nothing behind, and is retried only on the next setup() or `:Socless update`.
+nothing behind, and is retried only on the next setup() or `:Socle update`.
 Set `version` to run another release, or `server_jar` to run a local jar (no
 download, no version check).
 
 ==============================================================================
-COMMANDS                                                    *socless-commands*
-                                                                    *:Socless*
+COMMANDS                                                    *socle-commands*
+                                                                    *:Socle*
 
-:Socless view       Run the View design lens of the test at or above the
+:Socle view       Run the View design lens of the test at or above the
                     cursor (else the first one in the file).
-:Socless simulate   The same with the Simulate lens.
-:Socless panel      Open the last view's panel again.
-:Socless update     Download the jar again, then restart the server on it (or
+:Socle simulate   The same with the Simulate lens.
+:Socle panel      Open the last view's panel again.
+:Socle update     Download the jar again, then restart the server on it (or
                     start one). The jar on disk is only replaced once the new
                     one verified: a failed update keeps it.
-:Socless log        Open the LSP log, with the server's stderr, in a tab.
-:Socless health     Run `:checkhealth socless`.
+:Socle log        Open the LSP log, with the server's stderr, in a tab.
+:Socle health     Run `:checkhealth socle`.
 
-The browser opens once per panel URL; `:Socless panel` forces it again. The
+The browser opens once per panel URL; `:Socle panel` forces it again. The
 lenses also run with `grx` or |vim.lsp.codelens.run()|.
 
 ==============================================================================
-HEALTH                                                        *socless-health*
+HEALTH                                                        *socle-health*
 
-`:checkhealth socless` checks Neovim 0.12, that setup() was called, the java
+`:checkhealth socle` checks Neovim 0.12, that setup() was called, the java
 in use (Java 21 or later, else an ERROR), the jar (the pinned one is hashed
 again and must match the pinned sha256; a missing `server_jar` is an ERROR),
 curl, sha256sum or shasum, whether gh is installed and logged in
@@ -124,11 +124,11 @@ wave_viewer needs it. The download tools only WARN when the jar still has to
 be downloaded.
 
 ==============================================================================
-METALS                                                        *socless-metals*
+METALS                                                        *socle-metals*
 
-socless.nvim runs next to Metals or nvim-metals: both clients attach to the
-same buffers. SoCLess offers no diagnostics, completion, hover or definition.
-Code lenses are enabled for the socless client only, so Metals' lenses stay
+socle.nvim runs next to Metals or nvim-metals: both clients attach to the
+same buffers. Socle offers no diagnostics, completion, hover or definition.
+Code lenses are enabled for the socle client only, so Metals' lenses stay
 as they are.
 
  vim:tw=78:ts=8:ft=help:norl:

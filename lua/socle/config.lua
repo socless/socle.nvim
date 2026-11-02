@@ -1,7 +1,7 @@
 ---Options: the defaults, merging the user's, and the settings sent to the server.
 local M = {}
 
----@class socless.Settings
+---@class socle.Settings
 ---@field wave_flag? string
 ---@field surfer_command? string
 ---@field wave_viewer? string
@@ -21,7 +21,7 @@ local M = {}
 ---@field schematic_show_layers? boolean
 ---@field schematic_hide? string[] node kinds: "op", "reg", "const", "mem", "fsm", "block"
 
----@class socless.Config
+---@class socle.Config
 ---@field version string server release to download
 ---@field server_jar? string a local jar: overrides `version` and the download
 ---@field java? string nil: $JAVA_HOME/bin/java, else "java"
@@ -29,11 +29,11 @@ local M = {}
 ---@field follow_cursor boolean
 ---@field open_panel? string[]|fun(url: string) nil: vim.ui.open(url)
 ---@field notify_status boolean
----@field settings socless.Settings
+---@field settings socle.Settings
 
----@type socless.Config
+---@type socle.Config
 M.defaults = {
-  version = require("socless.versions").PINNED,
+  version = require("socle.versions").PINNED,
   server_jar = nil,
   java = nil,
   codelens = true,
@@ -45,7 +45,7 @@ M.defaults = {
 }
 
 ---Each `settings` option and its key in the server's settings object
----(socless-lsp SimSettings.fromObject).
+---(socle-lsp SimSettings.fromObject).
 ---@type table<string, string>
 M.server_keys = {
   wave_flag = "waveFlag",
@@ -76,7 +76,7 @@ M.options = { "version", "server_jar", "java", "codelens", "follow_cursor", "ope
 ---where the same key given under `settings` wins. Any other unknown option
 ---is left out, with one warning each.
 ---@param user? table
----@return socless.Config
+---@return socle.Config
 ---@return string[] warnings
 function M.merge(user)
   local opts, settings, warnings = {}, {}, {}
@@ -86,7 +86,7 @@ function M.merge(user)
     elseif M.server_keys[key] then
       settings[key] = value
     else
-      table.insert(warnings, ("SoCLess: unknown option '%s', ignored"):format(key))
+      table.insert(warnings, ("Socle: unknown option '%s', ignored"):format(key))
     end
   end
   opts.settings = vim.tbl_extend("force", settings, opts.settings or {})
@@ -97,7 +97,7 @@ end
 ---The server's settings object for `settings`: only the keys that are set, in
 ---the server's camelCase. Unknown keys are left out, with one warning each
 ---(the caller decides how to report them).
----@param settings? socless.Settings
+---@param settings? socle.Settings
 ---@return table<string, any> out
 ---@return string[] warnings
 function M.to_server(settings)
@@ -107,7 +107,7 @@ function M.to_server(settings)
     if server_key then
       out[server_key] = value
     else
-      table.insert(warnings, ("SoCLess: unknown setting '%s', ignored"):format(key))
+      table.insert(warnings, ("Socle: unknown setting '%s', ignored"):format(key))
     end
   end
   table.sort(warnings)
