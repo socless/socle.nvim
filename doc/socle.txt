@@ -9,7 +9,7 @@ Simulate runs the test with waveforms and shows them in Surfer.
 The plugin downloads the pinned server release, checks its sha256 and starts
 it next to Metals. Your tests and build are never modified. The server is
 described in Socle's docs/ide-neovim.md:
-https://github.com/e-ban/socle/blob/main/docs/ide-neovim.md
+https://github.com/socless/socle/blob/main/docs/ide-neovim.md
 
 Requirements: Neovim 0.12, Java 21 or later, a Mill project (build.mill at
 its root, and ./mill there or mill on PATH). To download the jar: curl, and
@@ -17,7 +17,7 @@ sha256sum or shasum. For Simulate: Verilator, and the Surfer app unless
 wave_viewer is "surfer-panel". Windows is not tested: without sha256sum or
 shasum, set `server_jar`.
 
-While e-ban/socle is private, the anonymous download fails and the plugin
+While socless/socle is private, the anonymous download fails and the plugin
 falls back to `gh release download`: run `gh auth login`, or set
 `server_jar`.
 
@@ -28,7 +28,7 @@ Nothing happens before setup() is called: >lua
     require("socle").setup({})
 <
 With lazy.nvim: >lua
-    { "e-ban/socle.nvim", ft = "scala", cmd = "Socle",
+    { "socless/socle.nvim", ft = "scala", cmd = "Socle",
       opts = { wave_viewer = "surfer-panel" } }
 <
 The server starts with the first Scala buffer of a Mill project (a build.mill

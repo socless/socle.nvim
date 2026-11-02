@@ -34,7 +34,7 @@ jobs:
 
   # Runs the real server on Socle's example project. Manual only: both
   # repositories are private, so it needs the SOCLE_TOKEN secret (read access
-  # to e-ban/socle, see the README's Development section).
+  # to socless/socle, see the README's Development section).
   integration:
     name: Integration test (real server)
     if: github.event_name == 'workflow_dispatch'
@@ -60,7 +60,7 @@ jobs:
       - name: Check out Socle v${{ env.SOCLE_VERSION }}
         uses: actions/checkout@v7
         with:
-          repository: e-ban/socle
+          repository: socless/socle
           ref: v${{ env.SOCLE_VERSION }}
           path: socle
           token: ${{ secrets.SOCLE_TOKEN }}
@@ -90,7 +90,7 @@ jobs:
           GH_TOKEN: ${{ secrets.SOCLE_TOKEN }}
         run: |
           mkdir -p "$RUNNER_TEMP/jar"
-          gh release download "v$SOCLE_VERSION" --repo e-ban/socle \
+          gh release download "v$SOCLE_VERSION" --repo socless/socle \
             --pattern "socle-lsp-$SOCLE_VERSION.jar" --pattern SHA256SUMS --dir "$RUNNER_TEMP/jar"
           (cd "$RUNNER_TEMP/jar" && sha256sum -c --ignore-missing SHA256SUMS)
           echo "SOCLE_JAR=$RUNNER_TEMP/jar/socle-lsp-$SOCLE_VERSION.jar" >> "$GITHUB_ENV"

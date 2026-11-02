@@ -1,6 +1,6 @@
 # socle.nvim
 
-A Neovim plugin for [Socle](https://github.com/e-ban/socle), the Chisel IDE
+A Neovim plugin for [Socle](https://github.com/socless/socle), the Chisel IDE
 language server. In a Chisel project built with Mill, it adds a **View design**
 and a **Simulate** code lens above every ChiselSim test:
 
@@ -13,18 +13,18 @@ and a **Simulate** code lens above every ChiselSim test:
 The plugin downloads the Socle server release it is tested against, checks
 its sha256, and starts it next to Metals. Your tests and build are never
 modified. The server itself is described in Socle's
-[Neovim guide](https://github.com/e-ban/socle/blob/main/docs/ide-neovim.md).
+[Neovim guide](https://github.com/socless/socle/blob/main/docs/ide-neovim.md).
 
 ## Private repository
 
-Both repositories (e-ban/socle and e-ban/socle.nvim) are private for now:
+Both repositories (socless/socle and socless/socle.nvim) are private for now:
 
-- **Installing the plugin** needs git access to e-ban/socle.nvim: an SSH key
+- **Installing the plugin** needs git access to socless/socle.nvim: an SSH key
   or git credentials for GitHub. Use the `git@github.com:` URL shown with each
   snippet below.
 - **The server jar download** fails anonymously (curl gets a 404). The plugin
   then tries `gh release download`, which works with a logged-in
-  [gh](https://cli.github.com/) (`gh auth login`) that can read e-ban/socle.
+  [gh](https://cli.github.com/) (`gh auth login`) that can read socless/socle.
   Otherwise, set `server_jar` to a jar you got some other way.
 
 `:checkhealth socle` reports whether gh is installed and logged in.
@@ -56,9 +56,9 @@ server ...", then "Socle: server ... ready").
 
 ```lua
 {
-  "e-ban/socle.nvim",
+  "socless/socle.nvim",
   -- while the repository is private:
-  -- url = "git@github.com:e-ban/socle.nvim.git",
+  -- url = "git@github.com:socless/socle.nvim.git",
   ft = "scala",
   cmd = "Socle",
   -- the options and the settings, flat (see Options)
@@ -78,18 +78,18 @@ in your config.
 ### vim.pack (Neovim 0.12)
 
 ```lua
-vim.pack.add({ "https://github.com/e-ban/socle.nvim" })
+vim.pack.add({ "https://github.com/socless/socle.nvim" })
 -- while the repository is private:
--- vim.pack.add({ "git@github.com:e-ban/socle.nvim.git" })
+-- vim.pack.add({ "git@github.com:socless/socle.nvim.git" })
 require("socle").setup()
 ```
 
 ### mini.deps
 
 ```lua
-MiniDeps.add({ source = "e-ban/socle.nvim" })
+MiniDeps.add({ source = "socless/socle.nvim" })
 -- while the repository is private:
--- MiniDeps.add({ source = "git@github.com:e-ban/socle.nvim.git" })
+-- MiniDeps.add({ source = "git@github.com:socless/socle.nvim.git" })
 require("socle").setup()
 ```
 
@@ -99,8 +99,8 @@ packer.nvim is unmaintained, but this still works:
 
 ```lua
 use({
-  "e-ban/socle.nvim",
-  -- while the repository is private: "git@github.com:e-ban/socle.nvim.git"
+  "socless/socle.nvim",
+  -- while the repository is private: "git@github.com:socless/socle.nvim.git"
   config = function() require("socle").setup() end,
 })
 ```
@@ -109,9 +109,9 @@ use({
 
 ```vim
 call plug#begin()
-Plug 'e-ban/socle.nvim'
+Plug 'socless/socle.nvim'
 " while the repository is private:
-" Plug 'git@github.com:e-ban/socle.nvim.git'
+" Plug 'git@github.com:socless/socle.nvim.git'
 call plug#end()
 
 lua require("socle").setup()
@@ -234,7 +234,7 @@ Metals' lenses stay as Metals configures them.
 Each plugin release pins the server release it is tested against
 (`require("socle.versions").PINNED`, now 0.22.0). The jar goes to
 `stdpath("data")/socle/socle-lsp-<version>.jar` and is downloaded once,
-from `https://github.com/e-ban/socle/releases/download/v<version>/`. The
+from `https://github.com/socless/socle/releases/download/v<version>/`. The
 pin includes the jar's sha256 (`require("socle.versions").PINNED_SHA256`):
 the pinned jar must match it, so a release asset replaced after the plugin
 release is refused. The release's `SHA256SUMS` is only used for a `version`
@@ -256,7 +256,7 @@ To override the pin:
 To bump the pin (a plugin release):
 
 1. Get the new release's checksums:
-   `gh release download v<new> --repo e-ban/socle --pattern SHA256SUMS`.
+   `gh release download v<new> --repo socless/socle --pattern SHA256SUMS`.
 2. In `lua/socle/versions.lua`, set `PINNED` to `<new>` and `PINNED_SHA256`
    to the `socle-lsp-<new>.jar` line's hash.
 3. Update the version this README and `doc/socle.txt` name (the unit
@@ -288,12 +288,12 @@ CI (`.github/workflows/ci.yml`) has two jobs:
 - **unit** runs the specs on every push to main and every pull request, on
   Neovim 0.12.6.
 - **integration** runs only when started by hand (Actions, "Run workflow"),
-  because e-ban/socle is private. It checks out Socle at the pinned
+  because socless/socle is private. It checks out Socle at the pinned
   version (read from `versions.PINNED`), downloads
   and checks its release jar, and runs `tests/integration` (Java 21, no
   Verilator: View design does not simulate). It needs a repository secret,
   `SOCLE_TOKEN`: a fine-grained personal access token with read access to
-  the contents of e-ban/socle (Settings, Secrets and variables, Actions).
+  the contents of socless/socle (Settings, Secrets and variables, Actions).
 
 ## License
 

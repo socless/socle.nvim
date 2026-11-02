@@ -4,7 +4,7 @@ local M = {}
 local versions = require("socle.versions")
 
 ---The GitHub repository the server releases come from.
-M.REPO = "e-ban/socle"
+M.REPO = "socless/socle"
 
 ---Time limits of the commands, in ms. curl's is a little over its own
 ---`--max-time`, so curl's own message wins.

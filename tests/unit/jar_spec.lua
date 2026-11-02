@@ -1,7 +1,7 @@
 local jar = require("socle.jar")
 local config = require("socle.config")
 
-local BASE = "https://github.com/e-ban/socle/releases/download/v0.22.0/"
+local BASE = "https://github.com/socless/socle/releases/download/v0.22.0/"
 local JAR_URL = BASE .. "socle-lsp-0.22.0.jar"
 local SUMS_URL = BASE .. "SHA256SUMS"
 -- A NUL byte, so a hash that stops at the first NUL fails the match.
@@ -262,8 +262,8 @@ describe("jar", function()
     end)
 
     it("builds the gh command from the repo constant", function()
-      eq("e-ban/socle", jar.REPO)
-      eq({ "gh", "release", "download", "v0.22.0", "--repo", "e-ban/socle", "--pattern",
+      eq("socless/socle", jar.REPO)
+      eq({ "gh", "release", "download", "v0.22.0", "--repo", "socless/socle", "--pattern",
         "socle-lsp-0.22.0.jar", "--output", "/x/y.part", "--clobber" },
         jar._gh_cmd("0.22.0", "socle-lsp-0.22.0.jar", "/x/y.part"))
     end)
@@ -394,7 +394,7 @@ describe("jar", function()
     end)
 
     it("uses SHA256SUMS for a version the user set", function()
-      local base = "https://github.com/e-ban/socle/releases/download/v0.16.0/"
+      local base = "https://github.com/socless/socle/releases/download/v0.16.0/"
       local calls = fake({
         [base .. "SHA256SUMS"] = sha256("old") .. "  socle-lsp-0.16.0.jar\n",
         [base .. "socle-lsp-0.16.0.jar"] = "old",
