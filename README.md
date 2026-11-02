@@ -123,7 +123,7 @@ The defaults:
 
 ```lua
 require("socless").setup({
-  version = "0.19.0",   -- the server release to download (the pin, see below)
+  version = "0.20.0",   -- the server release to download (the pin, see below)
   server_jar = nil,     -- a local jar: overrides version and the download
   java = nil,           -- nil: $JAVA_HOME/bin/java, else "java"
   codelens = true,      -- show the View design and Simulate lenses
@@ -232,7 +232,7 @@ Metals' lenses stay as Metals configures them.
 ## The server version
 
 Each plugin release pins the server release it is tested against
-(`require("socless.versions").PINNED`, now 0.19.0). The jar goes to
+(`require("socless.versions").PINNED`, now 0.20.0). The jar goes to
 `stdpath("data")/socless/socless-lsp-<version>.jar` and is downloaded once,
 from `https://github.com/e-ban/SoCless/releases/download/v<version>/`. The
 pin includes the jar's sha256 (`require("socless.versions").PINNED_SHA256`):
@@ -275,11 +275,11 @@ need two variables, and are skipped (not failed) without them:
 
 - `SOCLESS_ROOT`: a SoCLess checkout. View design runs `./mill` there and
   writes its `out/` directory, so use a scratch clone, not one you work in
-  (`git clone --branch v0.19.0 ~/dev/socless /tmp/socless`);
+  (`git clone --branch v0.20.0 ~/dev/socless /tmp/socless`);
 - `SOCLESS_JAR`: its server jar, `socless-lsp-<version>.jar`.
 
 ```sh
-SOCLESS_ROOT=/tmp/socless SOCLESS_JAR=/path/to/socless-lsp-0.19.0.jar \
+SOCLESS_ROOT=/tmp/socless SOCLESS_JAR=/path/to/socless-lsp-0.20.0.jar \
   nvim --headless -u NONE -l tests/run.lua integration
 ```
 
