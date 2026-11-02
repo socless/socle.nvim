@@ -122,7 +122,7 @@ local function check_download_tools(need_download)
   local repo = require("socle.jar").REPO
   if vim.fn.executable("gh") ~= 1 then
     return soft("gh not found" .. unneeded,
-      { ("While %s is private, the download needs a logged-in gh, or set server_jar"):format(repo) })
+      { ("If curl cannot download from %s, a logged-in gh is the fallback; or set server_jar"):format(repo) })
   end
   if M._run({ "gh", "auth", "status" }).code == 0 then
     vim.health.ok("gh is logged in (the download falls back to it)")

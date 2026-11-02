@@ -238,13 +238,13 @@ describe("jar", function()
       eq({ "0.23.0 socle-lsp-0.23.0.jar" }, gh_calls)
     end)
 
-    it("says curl and gh both failed and the repo may be private", function()
+    it("says curl and gh both failed and what to do", function()
       tools.gh = 1
       fake({ [SUMS_URL] = SUMS })
       local gh_calls = fake_gh({})
       local res = ensure(config.merge({}))
       eq(nil, res.path)
-      for _, want in ipairs({ JAR_URL, "curl", "gh", "private", "gh auth login", "server_jar" }) do
+      for _, want in ipairs({ JAR_URL, "curl", "gh", "gh auth login", "server_jar" }) do
         eq(true, res.err:find(want, 1, true) ~= nil, want .. " in " .. res.err)
       end
       eq(1, #gh_calls)
@@ -530,7 +530,7 @@ describe("jar", function()
       tools.gh = 0
       fake({})
       local res = ensure(config.merge({}))
-      for _, want in ipairs({ "404", "may be private", "install gh", "gh auth login", "server_jar" }) do
+      for _, want in ipairs({ "404", "Check the version", "install gh", "gh auth login", "server_jar" }) do
         eq(true, res.err:find(want, 1, true) ~= nil, want .. " in " .. res.err)
       end
     end)

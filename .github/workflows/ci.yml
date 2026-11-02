@@ -32,9 +32,8 @@ jobs:
           nvim --version | head -1
           nvim --headless -u NONE -l tests/run.lua
 
-  # Runs the real server on Socle's example project. Manual only: both
-  # repositories are private, so it needs the SOCLE_TOKEN secret (read access
-  # to socless/socle, see the README's Development section).
+  # Runs the real server on Socle's example project. Manual only: it takes
+  # several minutes.
   integration:
     name: Integration test (real server)
     if: github.event_name == 'workflow_dispatch'
@@ -63,7 +62,6 @@ jobs:
           repository: socless/socle
           ref: v${{ env.SOCLE_VERSION }}
           path: socle
-          token: ${{ secrets.SOCLE_TOKEN }}
           persist-credentials: false
 
       # The server is `java -jar` and needs Java 21. Verilator is not needed:
@@ -87,7 +85,7 @@ jobs:
 
       - name: Download the server jar
         env:
-          GH_TOKEN: ${{ secrets.SOCLE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p "$RUNNER_TEMP/jar"
           gh release download "v$SOCLE_VERSION" --repo socless/socle \

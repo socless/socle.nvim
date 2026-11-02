@@ -15,20 +15,6 @@ its sha256, and starts it next to Metals. Your tests and build are never
 modified. The server itself is described in Socle's
 [Neovim guide](https://github.com/socless/socle/blob/main/docs/ide-neovim.md).
 
-## Private repository
-
-Both repositories (socless/socle and socless/socle.nvim) are private for now:
-
-- **Installing the plugin** needs git access to socless/socle.nvim: an SSH key
-  or git credentials for GitHub. Use the `git@github.com:` URL shown with each
-  snippet below.
-- **The server jar download** fails anonymously (curl gets a 404). The plugin
-  then tries `gh release download`, which works with a logged-in
-  [gh](https://cli.github.com/) (`gh auth login`) that can read socless/socle.
-  Otherwise, set `server_jar` to a jar you got some other way.
-
-`:checkhealth socle` reports whether gh is installed and logged in.
-
 ## Requirements
 
 - Neovim 0.12 or later.
@@ -37,8 +23,9 @@ Both repositories (socless/socle and socless/socle.nvim) are private for now:
 - A Mill project, with a `build.mill` at its root and `./mill` there (or
   `mill` on `PATH`). The client does not start for a Scala file outside a Mill
   project (sbt, a lone file).
-- To download the server: curl, and `sha256sum` or `shasum` (macOS). While the
-  repository is private, a logged-in `gh` too (see above).
+- To download the server: curl, and `sha256sum` or `shasum` (macOS). When curl
+  cannot reach GitHub, the plugin tries a logged-in [gh](https://cli.github.com/)
+  (`gh release download`); `:checkhealth socle` reports both.
 - For Simulate only: Verilator on `PATH`, and the
   [Surfer](https://surfer-project.org/) app unless `wave_viewer` is
   `"surfer-panel"`.
@@ -57,8 +44,6 @@ server ...", then "Socle: server ... ready").
 ```lua
 {
   "socless/socle.nvim",
-  -- while the repository is private:
-  -- url = "git@github.com:socless/socle.nvim.git",
   ft = "scala",
   cmd = "Socle",
   -- the options and the settings, flat (see Options)
@@ -79,8 +64,6 @@ in your config.
 
 ```lua
 vim.pack.add({ "https://github.com/socless/socle.nvim" })
--- while the repository is private:
--- vim.pack.add({ "git@github.com:socless/socle.nvim.git" })
 require("socle").setup()
 ```
 
@@ -88,8 +71,6 @@ require("socle").setup()
 
 ```lua
 MiniDeps.add({ source = "socless/socle.nvim" })
--- while the repository is private:
--- MiniDeps.add({ source = "git@github.com:socless/socle.nvim.git" })
 require("socle").setup()
 ```
 
@@ -100,7 +81,6 @@ packer.nvim is unmaintained, but this still works:
 ```lua
 use({
   "socless/socle.nvim",
-  -- while the repository is private: "git@github.com:socless/socle.nvim.git"
   config = function() require("socle").setup() end,
 })
 ```
@@ -110,8 +90,6 @@ use({
 ```vim
 call plug#begin()
 Plug 'socless/socle.nvim'
-" while the repository is private:
-" Plug 'git@github.com:socless/socle.nvim.git'
 call plug#end()
 
 lua require("socle").setup()
@@ -288,12 +266,10 @@ CI (`.github/workflows/ci.yml`) has two jobs:
 - **unit** runs the specs on every push to main and every pull request, on
   Neovim 0.12.6.
 - **integration** runs only when started by hand (Actions, "Run workflow"),
-  because socless/socle is private. It checks out Socle at the pinned
-  version (read from `versions.PINNED`), downloads
-  and checks its release jar, and runs `tests/integration` (Java 21, no
-  Verilator: View design does not simulate). It needs a repository secret,
-  `SOCLE_TOKEN`: a fine-grained personal access token with read access to
-  the contents of socless/socle (Settings, Secrets and variables, Actions).
+  as it takes several minutes. It checks out Socle at the pinned version
+  (read from `versions.PINNED`), downloads and checks its release jar, and
+  runs `tests/integration` (Java 21, no Verilator: View design does not
+  simulate).
 
 ## License
 
