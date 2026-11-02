@@ -2,12 +2,12 @@
 local M = {}
 
 ---The SoCLess server release this plugin is tested against.
-M.PINNED = "0.18.0"
+M.PINNED = "0.19.0"
 
 ---The sha256 of the PINNED release's socless-lsp jar. The pinned jar must
 ---match it; the release's SHA256SUMS is only used for a `version` the user
 ---set. Bump it together with PINNED.
-M.PINNED_SHA256 = "3dc3d511321abc6c592866115d0456675e38129206bdcadef5a9b28463998b16"
+M.PINNED_SHA256 = "36fe8f1fad5588e2da8fb38e988d0a300c6917edf4afcd6552be118379b57d57"
 
 ---The lowest server version that understands each `settings` option.
 ---@type table<string, string>

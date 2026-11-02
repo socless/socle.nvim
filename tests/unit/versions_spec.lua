@@ -2,8 +2,8 @@ local versions = require("socless.versions")
 local config = require("socless.config")
 
 describe("versions", function()
-  it("pins 0.18.0", function()
-    eq("0.18.0", versions.PINNED)
+  it("pins 0.19.0", function()
+    eq("0.19.0", versions.PINNED)
     eq(versions.PINNED, config.defaults.version)
   end)
 
