@@ -40,7 +40,7 @@ OPTIONS                                                      *socless-options*
 
 The defaults: >lua
     require("socless").setup({
-      version = "0.20.0",   -- server release to download
+      version = "0.21.0",   -- server release to download
       server_jar = nil,     -- a local jar: overrides version and download
       java = nil,           -- nil: $JAVA_HOME/bin/java, else "java"
       codelens = true,      -- show the lenses
@@ -85,7 +85,7 @@ applies them by restarting the server; the open Scala buffers attach to the
 new one.
 
                                                      *socless-version*
-Each plugin release pins the server version it is tested against (0.20.0),
+Each plugin release pins the server version it is tested against (0.21.0),
 and the sha256 of its jar. The jar goes to
 stdpath("data")/socless/socless-lsp-<version>.jar, downloaded once from the
 GitHub release. The pinned jar must match the pinned sha256; a `version` you
