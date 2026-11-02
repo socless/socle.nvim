@@ -297,4 +297,7 @@ CI (`.github/workflows/ci.yml`) has two jobs:
 
 ## License
 
-MIT, like Socle. See [LICENSE](LICENSE).
+Copyright (C) 2026 Iban Guinebert. Licensed under the GNU AGPL-3.0-only, like Socle: see
+[LICENSE](LICENSE) and Socle's [LICENSING.md](https://github.com/socless/socle/blob/main/LICENSING.md),
+which also covers the commercial licence. Contributions are accepted under Socle's
+[Contributor License Agreement](https://github.com/socless/socle/blob/main/CLA.md).
