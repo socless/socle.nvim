@@ -58,6 +58,9 @@ server default applies). An unknown option or setting is warned about and
 ignored.
 
   wave_flag                 ChiselSim wave option, `-D<flag>=1`. "emitVcd"
+  firtool_opts              firtool options for Simulate, `-DfirtoolOpts=`;
+                            keeps what firtool would remove. "" turns it
+                            off. "-preserve-values=named"
   surfer_command            the Surfer app's executable. "surfer"
   wave_viewer               "surfer", "surfer-panel" or "custom". "surfer"
   wave_viewer_command       command for "custom"; {file} is the trace
@@ -78,7 +81,7 @@ ignored.
                             "mem", "fsm", "block". {}
 
 wave_flag and surfer_command need server 0.16.0, the other wave settings
-0.17.0, the schematic_* settings 0.18.0: an older
+0.17.0, the schematic_* settings 0.18.0, firtool_opts 0.26.0: an older
 `version` gets one warning per such setting. A second setup() with new options
 applies them by restarting the server; the open Scala buffers attach to the
 new one.

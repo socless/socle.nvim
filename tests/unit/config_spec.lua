@@ -36,6 +36,15 @@ describe("config.merge with flat settings", function()
     eq({ waveFlag = "emitFst", waveViewer = "surfer-panel" }, (config.to_server(cfg.settings)))
   end)
 
+  it("sends firtool_opts as firtoolOpts, an empty value too (it turns the default off)", function()
+    local cfg, warnings = config.merge({ settings = { firtool_opts = "" } })
+    eq({}, warnings)
+    eq({ firtoolOpts = "" }, (config.to_server(cfg.settings)))
+    local old = config.merge({ version = "0.25.2", settings = { firtool_opts = "-g" } })
+    eq({ "Socle: settings.firtool_opts needs server 0.26.0 or later (this is 0.25.2), it may be ignored" },
+      require("socle.versions").warnings(old))
+  end)
+
   it("keeps the settings value when a key is given in both places", function()
     local cfg = config.merge({ wave_viewer = "surfer", settings = { wave_viewer = "surfer-panel" } })
     eq({ wave_viewer = "surfer-panel" }, cfg.settings)

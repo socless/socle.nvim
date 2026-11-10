@@ -13,6 +13,7 @@ M.PINNED_SHA256 = "a82f84b161dd895a16e9df68f5a5317c9e811e0c0bd932d60368a9d03e6e5
 ---@type table<string, string>
 M.min = {
   wave_flag = "0.16.0",
+  firtool_opts = "0.26.0",
   surfer_command = "0.16.0",
   wave_viewer = "0.17.0",
   wave_viewer_command = "0.17.0",
