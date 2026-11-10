@@ -1,8 +1,8 @@
 local jar = require("socle.jar")
 local config = require("socle.config")
 
-local BASE = "https://github.com/socless/socle/releases/download/v0.25.0/"
-local JAR_URL = BASE .. "socle-lsp-0.25.0.jar"
+local BASE = "https://github.com/socless/socle/releases/download/v0.25.1/"
+local JAR_URL = BASE .. "socle-lsp-0.25.1.jar"
 local SUMS_URL = BASE .. "SHA256SUMS"
 -- A NUL byte, so a hash that stops at the first NUL fails the match.
 local CONTENT = "PK\3\4fake\0jar\0bytes"
@@ -84,7 +84,7 @@ describe("jar", function()
     notes = {}
     vim.notify = function(msg, level) table.insert(notes, { msg = msg, level = level }) end
     -- Most specs check against SHA256SUMS, which applies to a version the user
-    -- set: with this pin, 0.25.0 is such a version. "pinned hash" pins it.
+    -- set: with this pin, 0.25.1 is such a version. "pinned hash" pins it.
     real_pin = { versions.PINNED, versions.PINNED_SHA256 }
     versions.PINNED = "0.0.0-test"
     vim.fn.stdpath = function(what)
@@ -110,7 +110,7 @@ describe("jar", function()
 
   describe("path", function()
     it("gives the pinned path under stdpath('data')", function()
-      eq(data .. "/socle/socle-lsp-0.25.0.jar", jar.path(config.merge({})))
+      eq(data .. "/socle/socle-lsp-0.25.1.jar", jar.path(config.merge({})))
       eq(data .. "/socle/socle-lsp-0.16.0.jar", jar.path(config.merge({ version = "0.16.0" })))
     end)
 
@@ -122,19 +122,19 @@ describe("jar", function()
   describe("ensure", function()
     it("writes the jar after a matching sha256", function()
       local calls = fake({
-        [SUMS_URL] = "abc  socle-0.25.0.html\n" .. sha256(CONTENT) .. "  socle-lsp-0.25.0.jar\n",
+        [SUMS_URL] = "abc  socle-0.25.1.html\n" .. sha256(CONTENT) .. "  socle-lsp-0.25.1.jar\n",
         [JAR_URL] = CONTENT,
       })
       local res = ensure(config.merge({}))
       eq(nil, res.err)
-      eq(data .. "/socle/socle-lsp-0.25.0.jar", res.path)
+      eq(data .. "/socle/socle-lsp-0.25.1.jar", res.path)
       eq(CONTENT, vim.fn.readblob(res.path))
-      eq({ "socle-lsp-0.25.0.jar" }, listing())
+      eq({ "socle-lsp-0.25.1.jar" }, listing())
       eq({ SUMS_URL, JAR_URL }, calls)
     end)
 
     it("accepts a binary-mode line of SHA256SUMS", function()
-      fake({ [SUMS_URL] = sha256(CONTENT) .. " *socle-lsp-0.25.0.jar\n", [JAR_URL] = CONTENT })
+      fake({ [SUMS_URL] = sha256(CONTENT) .. " *socle-lsp-0.25.1.jar\n", [JAR_URL] = CONTENT })
       eq(nil, ensure(config.merge({})).err)
     end)
 
@@ -149,7 +149,7 @@ describe("jar", function()
     end)
 
     it("rejects a mismatch, leaving no .part file and no jar", function()
-      fake({ [SUMS_URL] = string.rep("0", 64) .. "  socle-lsp-0.25.0.jar\n", [JAR_URL] = CONTENT })
+      fake({ [SUMS_URL] = string.rep("0", 64) .. "  socle-lsp-0.25.1.jar\n", [JAR_URL] = CONTENT })
       local res = ensure(config.merge({}))
       eq(nil, res.path)
       eq(true, res.err:find("checksum", 1, true) ~= nil, res.err)
@@ -166,25 +166,25 @@ describe("jar", function()
     end)
 
     it("makes one fetch for two concurrent calls, and both callbacks fire", function()
-      local calls = fake({ [SUMS_URL] = sha256(CONTENT) .. "  socle-lsp-0.25.0.jar\n", [JAR_URL] = CONTENT })
+      local calls = fake({ [SUMS_URL] = sha256(CONTENT) .. "  socle-lsp-0.25.1.jar\n", [JAR_URL] = CONTENT })
       local got = {}
       jar.ensure(config.merge({}), function(path) table.insert(got, path) end)
       jar.ensure(config.merge({}), function(path) table.insert(got, path) end)
       assert(vim.wait(2000, function() return #got == 2 end), "both callbacks should fire")
-      local path = data .. "/socle/socle-lsp-0.25.0.jar"
+      local path = data .. "/socle/socle-lsp-0.25.1.jar"
       eq({ path, path }, got)
       eq({ SUMS_URL, JAR_URL }, calls)
     end)
 
     it("names the URL on a failed fetch, and the next call retries", function()
-      local calls = fake({ [SUMS_URL] = sha256(CONTENT) .. "  socle-lsp-0.25.0.jar\n" })
+      local calls = fake({ [SUMS_URL] = sha256(CONTENT) .. "  socle-lsp-0.25.1.jar\n" })
       local res = ensure(config.merge({}))
       eq(nil, res.path)
       eq(true, res.err:find(JAR_URL, 1, true) ~= nil, res.err)
       eq({}, listing())
       eq(2, #calls)
 
-      fake({ [SUMS_URL] = sha256(CONTENT) .. "  socle-lsp-0.25.0.jar\n", [JAR_URL] = CONTENT })
+      fake({ [SUMS_URL] = sha256(CONTENT) .. "  socle-lsp-0.25.1.jar\n", [JAR_URL] = CONTENT })
       res = ensure(config.merge({}))
       eq(nil, res.err)
       eq(CONTENT, vim.fn.readblob(res.path))
@@ -216,26 +216,26 @@ describe("jar", function()
   end)
 
   describe("gh fallback", function()
-    local SUMS = sha256(CONTENT) .. "  socle-lsp-0.25.0.jar\n"
+    local SUMS = sha256(CONTENT) .. "  socle-lsp-0.25.1.jar\n"
 
     it("downloads with gh when curl fails", function()
       tools.gh = 1
       local calls = fake({})
-      local gh_calls = fake_gh({ SHA256SUMS = SUMS, ["socle-lsp-0.25.0.jar"] = CONTENT })
+      local gh_calls = fake_gh({ SHA256SUMS = SUMS, ["socle-lsp-0.25.1.jar"] = CONTENT })
       local res = ensure(config.merge({}))
       eq(nil, res.err)
       eq(CONTENT, vim.fn.readblob(res.path))
       eq({ SUMS_URL, JAR_URL }, calls)
-      eq({ "0.25.0 SHA256SUMS", "0.25.0 socle-lsp-0.25.0.jar" }, gh_calls)
-      eq({ "socle-lsp-0.25.0.jar" }, listing())
+      eq({ "0.25.1 SHA256SUMS", "0.25.1 socle-lsp-0.25.1.jar" }, gh_calls)
+      eq({ "socle-lsp-0.25.1.jar" }, listing())
     end)
 
     it("only asks gh for the file curl failed on", function()
       tools.gh = 1
       fake({ [SUMS_URL] = SUMS })
-      local gh_calls = fake_gh({ ["socle-lsp-0.25.0.jar"] = CONTENT })
+      local gh_calls = fake_gh({ ["socle-lsp-0.25.1.jar"] = CONTENT })
       eq(nil, ensure(config.merge({})).err)
-      eq({ "0.25.0 socle-lsp-0.25.0.jar" }, gh_calls)
+      eq({ "0.25.1 socle-lsp-0.25.1.jar" }, gh_calls)
     end)
 
     it("says curl and gh both failed and what to do", function()
@@ -254,7 +254,7 @@ describe("jar", function()
     it("does not try gh when it is not installed", function()
       tools.gh = 0
       fake({})
-      local gh_calls = fake_gh({ SHA256SUMS = SUMS, ["socle-lsp-0.25.0.jar"] = CONTENT })
+      local gh_calls = fake_gh({ SHA256SUMS = SUMS, ["socle-lsp-0.25.1.jar"] = CONTENT })
       local res = ensure(config.merge({}))
       eq(nil, res.path)
       eq(true, res.err:find(SUMS_URL, 1, true) ~= nil, res.err)
@@ -263,15 +263,15 @@ describe("jar", function()
 
     it("builds the gh command from the repo constant", function()
       eq("socless/socle", jar.REPO)
-      eq({ "gh", "release", "download", "v0.25.0", "--repo", "socless/socle", "--pattern",
-        "socle-lsp-0.25.0.jar", "--output", "/x/y.part", "--clobber" },
-        jar._gh_cmd("0.25.0", "socle-lsp-0.25.0.jar", "/x/y.part"))
+      eq({ "gh", "release", "download", "v0.25.1", "--repo", "socless/socle", "--pattern",
+        "socle-lsp-0.25.1.jar", "--output", "/x/y.part", "--clobber" },
+        jar._gh_cmd("0.25.1", "socle-lsp-0.25.1.jar", "/x/y.part"))
     end)
   end)
 
   describe("checksum tool", function()
     local function good()
-      fake({ [SUMS_URL] = sha256(CONTENT) .. "  socle-lsp-0.25.0.jar\n", [JAR_URL] = CONTENT })
+      fake({ [SUMS_URL] = sha256(CONTENT) .. "  socle-lsp-0.25.1.jar\n", [JAR_URL] = CONTENT })
     end
 
     it("uses sha256sum when present", function()
@@ -308,11 +308,11 @@ describe("jar", function()
       local seen
       jar._sha256 = function(path, cb) seen = path; cb(string.rep("0", 64)) end
       local ok, err = pcall(function()
-        fake({ [SUMS_URL] = string.rep("0", 64) .. "  socle-lsp-0.25.0.jar\n", [JAR_URL] = CONTENT })
+        fake({ [SUMS_URL] = string.rep("0", 64) .. "  socle-lsp-0.25.1.jar\n", [JAR_URL] = CONTENT })
         local res = ensure(config.merge({}))
         eq(nil, res.err)
         -- one .part per Neovim process, so two instances never share one
-        eq(data .. "/socle/socle-lsp-0.25.0.jar." .. vim.fn.getpid() .. ".part", seen)
+        eq(data .. "/socle/socle-lsp-0.25.1.jar." .. vim.fn.getpid() .. ".part", seen)
       end)
       jar._sha256 = real
       assert(ok, err)
@@ -320,7 +320,7 @@ describe("jar", function()
   end)
 
   describe("robustness", function()
-    local SUMS = sha256(CONTENT) .. "  socle-lsp-0.25.0.jar\n"
+    local SUMS = sha256(CONTENT) .. "  socle-lsp-0.25.1.jar\n"
 
     it("calls every waiter when one throws, and reports the error", function()
       fake({ [SUMS_URL] = SUMS, [JAR_URL] = CONTENT })
@@ -331,7 +331,7 @@ describe("jar", function()
       jar.ensure(config.merge({}), function() error("waiter boom") end)
       jar.ensure(config.merge({}), function(path, e) second = { path = path, err = e } end)
       assert(vim.wait(2000, function() return second ~= nil and #errors() > 0 end), "second waiter or notify missing")
-      eq(data .. "/socle/socle-lsp-0.25.0.jar", second.path)
+      eq(data .. "/socle/socle-lsp-0.25.1.jar", second.path)
       eq(true, errors()[1].msg:find("waiter boom", 1, true) ~= nil, errors()[1].msg)
     end)
 
@@ -353,7 +353,7 @@ describe("jar", function()
 
     it("only accepts a SHA256SUMS hash of 64 hex characters", function()
       for _, bad in ipairs({ "abc", string.rep("a", 63), string.rep("a", 65) }) do
-        fake({ [SUMS_URL] = bad .. "  socle-lsp-0.25.0.jar\n", [JAR_URL] = CONTENT })
+        fake({ [SUMS_URL] = bad .. "  socle-lsp-0.25.1.jar\n", [JAR_URL] = CONTENT })
         local res = ensure(config.merge({}))
         eq(nil, res.path)
         eq(true, res.err:find("no checksum", 1, true) ~= nil, res.err)
@@ -373,7 +373,7 @@ describe("jar", function()
 
   describe("pinned hash", function()
     before_each(function()
-      versions.PINNED, versions.PINNED_SHA256 = "0.25.0", sha256(CONTENT)
+      versions.PINNED, versions.PINNED_SHA256 = "0.25.1", sha256(CONTENT)
     end)
 
     it("checks the pinned version against PINNED_SHA256, without SHA256SUMS", function()
@@ -386,7 +386,7 @@ describe("jar", function()
 
     it("rejects a pinned jar that does not match PINNED_SHA256, even when SHA256SUMS agrees", function()
       versions.PINNED_SHA256 = string.rep("0", 64)
-      fake({ [SUMS_URL] = sha256(CONTENT) .. "  socle-lsp-0.25.0.jar\n", [JAR_URL] = CONTENT })
+      fake({ [SUMS_URL] = sha256(CONTENT) .. "  socle-lsp-0.25.1.jar\n", [JAR_URL] = CONTENT })
       local res = ensure(config.merge({}))
       eq(nil, res.path)
       eq(true, res.err:find("checksum mismatch", 1, true) ~= nil, res.err)
@@ -406,7 +406,7 @@ describe("jar", function()
   end)
 
   describe("force (:Socle update)", function()
-    local SUMS = sha256(CONTENT) .. "  socle-lsp-0.25.0.jar\n"
+    local SUMS = sha256(CONTENT) .. "  socle-lsp-0.25.1.jar\n"
     local function forced(cfg)
       local res
       jar.ensure(cfg, function(path, err) res = { path = path, err = err } end, { force = true })
@@ -428,7 +428,7 @@ describe("jar", function()
       local res = forced(config.merge({}))
       eq(nil, res.err)
       eq(CONTENT, vim.fn.readblob(path))
-      eq({ "socle-lsp-0.25.0.jar" }, listing())
+      eq({ "socle-lsp-0.25.1.jar" }, listing())
     end)
 
     it("keeps the old jar when the download fails", function()
@@ -437,12 +437,12 @@ describe("jar", function()
       local res = forced(config.merge({}))
       eq(nil, res.path)
       eq("old jar", vim.fn.readblob(path))
-      eq({ "socle-lsp-0.25.0.jar" }, listing())
+      eq({ "socle-lsp-0.25.1.jar" }, listing())
     end)
 
     it("keeps the old jar when the new one does not verify", function()
       local path = old_jar()
-      fake({ [SUMS_URL] = string.rep("0", 64) .. "  socle-lsp-0.25.0.jar\n", [JAR_URL] = CONTENT })
+      fake({ [SUMS_URL] = string.rep("0", 64) .. "  socle-lsp-0.25.1.jar\n", [JAR_URL] = CONTENT })
       local res = forced(config.merge({}))
       eq(nil, res.path)
       eq("old jar", vim.fn.readblob(path))
@@ -450,7 +450,7 @@ describe("jar", function()
   end)
 
   describe("notices", function()
-    local SUMS = sha256(CONTENT) .. "  socle-lsp-0.25.0.jar\n"
+    local SUMS = sha256(CONTENT) .. "  socle-lsp-0.25.1.jar\n"
     local function infos()
       return vim.tbl_map(function(n) return n.msg end,
         vim.tbl_filter(function(n) return n.level == vim.log.levels.INFO end, notes))
@@ -459,7 +459,7 @@ describe("jar", function()
     it("says when a download starts and when the server is ready", function()
       fake({ [SUMS_URL] = SUMS, [JAR_URL] = CONTENT })
       ensure(config.merge({}))
-      eq({ "Socle: downloading server 0.25.0...", "Socle: server 0.25.0 ready" }, infos())
+      eq({ "Socle: downloading server 0.25.1...", "Socle: server 0.25.1 ready" }, infos())
     end)
 
     it("says nothing for a jar already on disk", function()
@@ -482,11 +482,11 @@ describe("jar", function()
     it("names gh in the final message only, when curl failed", function()
       tools.gh = 1
       fake({})
-      fake_gh({ SHA256SUMS = SUMS, ["socle-lsp-0.25.0.jar"] = CONTENT })
+      fake_gh({ SHA256SUMS = SUMS, ["socle-lsp-0.25.1.jar"] = CONTENT })
       ensure(config.merge({}))
       local msgs = infos()
       eq(2, #msgs)
-      eq("Socle: downloading server 0.25.0...", msgs[1])
+      eq("Socle: downloading server 0.25.1...", msgs[1])
       eq(true, msgs[2]:find("ready", 1, true) ~= nil and msgs[2]:find("gh", 1, true) ~= nil, msgs[2])
     end)
   end)
@@ -503,7 +503,7 @@ describe("jar", function()
       vim.system = function(cmd, opts) seen[cmd[1]] = opts.timeout; return {} end
       local ok, err = pcall(function()
         real_fetch("https://h/f", "/x", function() end)
-        real_fetch_gh("0.25.0", "a", "/x", function() end)
+        real_fetch_gh("0.25.1", "a", "/x", function() end)
         jar._sha256("/x", function() end)
       end)
       vim.system = real_system
