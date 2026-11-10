@@ -2,8 +2,8 @@ local versions = require("socle.versions")
 local config = require("socle.config")
 
 describe("versions", function()
-  it("pins 0.25.1", function()
-    eq("0.25.1", versions.PINNED)
+  it("pins 0.25.2", function()
+    eq("0.25.2", versions.PINNED)
     eq(versions.PINNED, config.defaults.version)
   end)
 
