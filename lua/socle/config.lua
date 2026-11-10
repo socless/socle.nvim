@@ -3,6 +3,7 @@ local M = {}
 
 ---@class socle.Settings
 ---@field wave_flag? string
+---@field firtool_opts? string
 ---@field surfer_command? string
 ---@field wave_viewer? string
 ---@field wave_viewer_command? string
@@ -49,6 +50,7 @@ M.defaults = {
 ---@type table<string, string>
 M.server_keys = {
   wave_flag = "waveFlag",
+  firtool_opts = "firtoolOpts",
   surfer_command = "surferCommand",
   wave_viewer = "waveViewer",
   wave_viewer_command = "waveViewerCommand",

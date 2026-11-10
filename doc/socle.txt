@@ -39,7 +39,7 @@ OPTIONS                                                      *socle-options*
 
 The defaults: >lua
     require("socle").setup({
-      version = "0.25.2",   -- server release to download
+      version = "0.26.0",   -- server release to download
       server_jar = nil,     -- a local jar: overrides version and download
       java = nil,           -- nil: $JAVA_HOME/bin/java, else "java"
       codelens = true,      -- show the lenses
@@ -58,6 +58,9 @@ server default applies). An unknown option or setting is warned about and
 ignored.
 
   wave_flag                 ChiselSim wave option, `-D<flag>=1`. "emitVcd"
+  firtool_opts              firtool options for Simulate, `-DfirtoolOpts=`;
+                            keeps what firtool would remove. "" turns it
+                            off. "-preserve-values=named"
   surfer_command            the Surfer app's executable. "surfer"
   wave_viewer               "surfer", "surfer-panel" or "custom". "surfer"
   wave_viewer_command       command for "custom"; {file} is the trace
@@ -78,13 +81,13 @@ ignored.
                             "mem", "fsm", "block". {}
 
 wave_flag and surfer_command need server 0.16.0, the other wave settings
-0.17.0, the schematic_* settings 0.18.0: an older
+0.17.0, the schematic_* settings 0.18.0, firtool_opts 0.26.0: an older
 `version` gets one warning per such setting. A second setup() with new options
 applies them by restarting the server; the open Scala buffers attach to the
 new one.
 
                                                      *socle-version*
-Each plugin release pins the server version it is tested against (0.25.2),
+Each plugin release pins the server version it is tested against (0.26.0),
 and the sha256 of its jar. The jar goes to
 stdpath("data")/socle/socle-lsp-<version>.jar, downloaded once from the
 GitHub release. The pinned jar must match the pinned sha256; a `version` you

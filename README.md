@@ -101,7 +101,7 @@ The defaults:
 
 ```lua
 require("socle").setup({
-  version = "0.25.2",   -- the server release to download (the pin, see below)
+  version = "0.26.0",   -- the server release to download (the pin, see below)
   server_jar = nil,     -- a local jar: overrides version and the download
   java = nil,           -- nil: $JAVA_HOME/bin/java, else "java"
   codelens = true,      -- show the View design and Simulate lenses
@@ -122,6 +122,7 @@ here). An unknown option or setting gets a warning and is ignored.
 | Setting | Server default | Meaning |
 |---------|----------------|---------|
 | `wave_flag` | `"emitVcd"` | ChiselSim option that turns waves on for Simulate, passed as `-D<flag>=1`. |
+| `firtool_opts` | `"-preserve-values=named"` | firtool options Simulate compiles the design with, passed as `-DfirtoolOpts=<value>` (several separated by spaces). The default keeps the ports and instances firtool would remove, so they are in the trace; `""` turns it off. |
 | `surfer_command` | `"surfer"` | The Surfer app's executable. |
 | `wave_viewer` | `"surfer"` | `"surfer"` (the app), `"surfer-panel"` (Surfer in the browser panel) or `"custom"`. |
 | `wave_viewer_command` | empty | Command for `"custom"`, split on whitespace; `{file}` is the trace path, e.g. `"gtkwave {file}"`. Empty: `<surfer_command> <trace>`. |
@@ -141,7 +142,7 @@ here). An unknown option or setting gets a warning and is ignored.
 | `schematic_hide` | `{}` | Node kinds to leave out: `"op"`, `"reg"`, `"const"`, `"mem"`, `"fsm"`, `"block"`. |
 
 `wave_flag` and `surfer_command` need server 0.16.0 or later, the other wave
-settings 0.17.0, the `schematic_*` settings 0.18.0. With an older `version`,
+settings 0.17.0, the `schematic_*` settings 0.18.0, `firtool_opts` 0.26.0. With an older `version`,
 `setup` warns once per such setting.
 
 The `schematic_*` settings are the panel's defaults: it applies them when it
@@ -210,7 +211,7 @@ Metals' lenses stay as Metals configures them.
 ## The server version
 
 Each plugin release pins the server release it is tested against
-(`require("socle.versions").PINNED`, now 0.25.2). The jar goes to
+(`require("socle.versions").PINNED`, now 0.26.0). The jar goes to
 `stdpath("data")/socle/socle-lsp-<version>.jar` and is downloaded once,
 from `https://github.com/socless/socle/releases/download/v<version>/`. The
 pin includes the jar's sha256 (`require("socle.versions").PINNED_SHA256`):
@@ -253,11 +254,11 @@ need two variables, and are skipped (not failed) without them:
 
 - `SOCLE_ROOT`: a Socle checkout. View design runs `./mill` there and
   writes its `out/` directory, so use a scratch clone, not one you work in
-  (`git clone --branch v0.25.2 ~/dev/socle /tmp/socle`);
+  (`git clone --branch v0.26.0 ~/dev/socle /tmp/socle`);
 - `SOCLE_JAR`: its server jar, `socle-lsp-<version>.jar`.
 
 ```sh
-SOCLE_ROOT=/tmp/socle SOCLE_JAR=/path/to/socle-lsp-0.25.2.jar \
+SOCLE_ROOT=/tmp/socle SOCLE_JAR=/path/to/socle-lsp-0.26.0.jar \
   nvim --headless -u NONE -l tests/run.lua integration
 ```
 
