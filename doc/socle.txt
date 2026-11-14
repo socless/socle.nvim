@@ -39,7 +39,7 @@ OPTIONS                                                      *socle-options*
 
 The defaults: >lua
     require("socle").setup({
-      version = "0.28.0",   -- server release to download
+      version = "0.29.0",   -- server release to download
       server_jar = nil,     -- a local jar: overrides version and download
       java = nil,           -- nil: $JAVA_HOME/bin/java, else "java"
       codelens = true,      -- show the lenses
@@ -87,7 +87,7 @@ applies them by restarting the server; the open Scala buffers attach to the
 new one.
 
                                                      *socle-version*
-Each plugin release pins the server version it is tested against (0.28.0),
+Each plugin release pins the server version it is tested against (0.29.0),
 and the sha256 of its jar. The jar goes to
 stdpath("data")/socle/socle-lsp-<version>.jar, downloaded once from the
 GitHub release. The pinned jar must match the pinned sha256; a `version` you
