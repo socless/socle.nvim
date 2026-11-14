@@ -2,12 +2,12 @@
 local M = {}
 
 ---The Socle server release this plugin is tested against.
-M.PINNED = "0.29.0"
+M.PINNED = "0.30.0"
 
 ---The sha256 of the PINNED release's socle-lsp jar. The pinned jar must
 ---match it; the release's SHA256SUMS is only used for a `version` the user
 ---set. Bump it together with PINNED.
-M.PINNED_SHA256 = "750df21bf6720a4034b4dd859efcb38d015ead0936884e69abeabe8cd964e69e"
+M.PINNED_SHA256 = "e0d085e18f1544b6dde188ef3f98afb821bb133823699e55f98d7c63cf16a109"
 
 ---The lowest server version that understands each `settings` option.
 ---@type table<string, string>
